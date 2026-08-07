@@ -1,0 +1,54 @@
+{
+  "document_id": "golden_document_001",
+  "document_type": "sales_register",
+  "columns": [
+    "No",
+    "Customer Name",
+    "Date",
+    "Product",
+    "Quantity",
+    "Amount"
+  ],
+  "rows": [
+    {
+      "No": 1,
+      "Customer Name": "Rahul Patil",
+      "Date": "2026-08-01",
+      "Product": "Laptop",
+      "Quantity": 1,
+      "Amount": 55000
+    },
+    {
+      "No": 2,
+      "Customer Name": "Amit Sharma",
+      "Date": "2026-08-02",
+      "Product": "Monitor",
+      "Quantity": 2,
+      "Amount": 24000
+    },
+    {
+      "No": 3,
+      "Customer Name": "Priya Shah",
+      "Date": "2026-08-03",
+      "Product": "Keyboard",
+      "Quantity": 3,
+      "Amount": 4500
+    },
+    {
+      "No": 4,
+      "Customer Name": "Neha Joshi",
+      "Date": "2026-08-04",
+      "Product": "Mouse",
+      "Quantity": 2,
+      "Amount": 1600
+    },
+    {
+      "No": 5,
+      "Customer Name": "Vikas More",
+      "Date": "2026-08-05",
+      "Product": "Printer",
+      "Quantity": 1,
+      "Amount": 12500
+    }
+  ]
+}
