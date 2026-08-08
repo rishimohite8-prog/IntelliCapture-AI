@@ -1,0 +1,23 @@
+===== STRUCTURED OCR =====
+
+TEXT='SALES' | CONF=96 | X=660 | Y=59 | W=176 | H=40
+TEXT='REGISTER' | CONF=96 | X=863 | Y=59 | W=280 | H=40
+TEXT='Rahul' | CONF=96 | X=282 | Y=336 | W=71 | H=21
+TEXT='Patil' | CONF=96 | X=367 | Y=336 | W=52 | H=21
+TEXT='01/08/2026' | CONF=95 | X=574 | Y=337 | W=151 | H=22
+TEXT='Laptop' | CONF=96 | X=882 | Y=337 | W=89 | H=26
+TEXT='55000' | CONF=96 | X=1324 | Y=337 | W=82 | H=20
+TEXT='Priya' | CONF=96 | X=281 | Y=546 | W=61 | H=27
+TEXT='Shah' | CONF=96 | X=356 | Y=546 | W=63 | H=21
+TEXT='03/08/2026' | CONF=96 | X=574 | Y=547 | W=151 | H=22
+TEXT='Keyboard' | CONF=96 | X=865 | Y=546 | W=122 | H=27
+TEXT='4500' | CONF=96 | X=1332 | Y=547 | W=66 | H=20
+TEXT='Golden' | CONF=96 | X=623 | Y=891 | W=82 | H=18
+TEXT='Document' | CONF=96 | X=717 | Y=891 | W=122 | H=18
+TEXT='#001' | CONF=93 | X=849 | Y=891 | W=61 | H=18
+TEXT='—' | CONF=92 | X=921 | Y=902 | W=22 | H=2
+TEXT='Baseline' | CONF=96 | X=954 | Y=891 | W=98 | H=18
+TEXT='Test' | CONF=96 | X=1061 | Y=891 | W=47 | H=18
+TEXT='Input' | CONF=96 | X=1118 | Y=891 | W=60 | H=23
+
+===== END STRUCTURED OCR =====

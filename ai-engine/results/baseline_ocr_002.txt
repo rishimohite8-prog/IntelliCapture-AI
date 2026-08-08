@@ -1,0 +1,9 @@
+===== OCR OUTPUT =====
+
+SALES REGISTER
+
+ecm [oe [ee [om
+
+Golden Document #001 — Baseline Test Input
+
+===== END OCR OUTPUT =====

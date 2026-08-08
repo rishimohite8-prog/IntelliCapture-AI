@@ -1,0 +1,11 @@
+===== OCR OUTPUT =====
+
+SALES REGISTER
+
+Rahul Patil 01/08/2026 Laptop 55000
+
+Priya Shah 03/08/2026 Keyboard 4500
+
+Golden Document #001 — Baseline Test Input
+
+===== END OCR OUTPUT =====

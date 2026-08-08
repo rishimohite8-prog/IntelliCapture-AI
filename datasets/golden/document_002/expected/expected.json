@@ -1,0 +1,23 @@
+{
+  "document_id": "document_002",
+  "records": [
+    {
+      "customer": "Amit Joshi",
+      "date": "05/08/2026",
+      "product": "Monitor",
+      "amount": "15000"
+    },
+    {
+      "customer": "Sneha Patil",
+      "date": "06/08/2026",
+      "product": "Mouse",
+      "amount": "1200"
+    },
+    {
+      "customer": "Vikas Shah",
+      "date": "07/08/2026",
+      "product": "Keyboard",
+      "amount": "2500"
+    }
+  ]
+}

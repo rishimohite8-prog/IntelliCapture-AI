@@ -1,0 +1,35 @@
+{
+  "document_id": "document_001",
+  "records": [
+    {
+      "customer": "Rahul Patil",
+      "date": "01/08/2026",
+      "product": "Laptop",
+      "amount": "55000"
+    },
+    {
+      "customer": "Amit Sharma",
+      "date": "02/08/2026",
+      "product": "Monitor",
+      "amount": "24000"
+    },
+    {
+      "customer": "Priya Shah",
+      "date": "03/08/2026",
+      "product": "Keyboard",
+      "amount": "4500"
+    },
+    {
+      "customer": "Neha Joshi",
+      "date": "04/08/2026",
+      "product": "Mouse",
+      "amount": "1600"
+    },
+    {
+      "customer": "Vikas More",
+      "date": "05/08/2026",
+      "product": "Printer",
+      "amount": "12500"
+    }
+  ]
+}
