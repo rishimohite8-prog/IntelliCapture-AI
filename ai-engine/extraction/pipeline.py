@@ -7,57 +7,102 @@ from pathlib import Path
 # PROJECT ROOT
 # ============================================================
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(
+    __file__
+).resolve().parents[2]
 
 
 # ============================================================
 # ADD AI ENGINE TO PYTHON PATH
 # ============================================================
 
-AI_ENGINE_PATH = PROJECT_ROOT / "ai-engine"
+AI_ENGINE_PATH = (
+    PROJECT_ROOT
+    / "ai-engine"
+)
 
 if str(AI_ENGINE_PATH) not in sys.path:
-    sys.path.insert(0, str(AI_ENGINE_PATH))
+
+    sys.path.insert(
+        0,
+        str(AI_ENGINE_PATH)
+    )
 
 
 # ============================================================
 # INTELLICAPTURE MODULES
 # ============================================================
 
-from ocr.structured_ocr import run_structured_ocr
-from extraction.row_detector import group_words_into_rows
-from extraction.column_detector import row_to_columns
-from extraction.field_mapper import map_row_to_fields
-from validation.record_validator import validate_record
+from ocr.structured_ocr import (
+    run_structured_ocr
+)
+
+from extraction.row_detector import (
+    group_words_into_rows
+)
+
+from extraction.column_detector import (
+    row_to_columns
+)
+
+from extraction.field_mapper import (
+    map_row_to_fields
+)
+
+from validation.record_validator import (
+    validate_record
+)
+
+from confidence.confidence_engine import (
+    build_record_confidence,
+    build_document_confidence_summary
+)
 
 
 # ============================================================
 # PROCESS DOCUMENT
 # ============================================================
 
-def process_document(input_file: Path) -> dict:
+def process_document(
+    input_file: Path
+) -> dict:
     """
     Run the complete IntelliCapture extraction pipeline.
+
+    The existing records structure remains unchanged.
+
+    Additional confidence information is returned separately.
     """
 
-    print("Running structured OCR...")
+    print(
+        "Running structured OCR..."
+    )
+
 
     # --------------------------------------------------------
     # STEP 1: OCR
     # --------------------------------------------------------
 
-    words = run_structured_ocr(input_file)
+    words = run_structured_ocr(
+        input_file
+    )
 
-    print(f"OCR words detected: {len(words)}")
+    print(
+        f"OCR words detected: {len(words)}"
+    )
 
 
     # --------------------------------------------------------
     # STEP 2: ROW DETECTION
     # --------------------------------------------------------
 
-    rows = group_words_into_rows(words)
+    rows = group_words_into_rows(
+        words
+    )
 
-    print(f"Rows detected: {len(rows)}")
+    print(
+        f"Rows detected: {len(rows)}"
+    )
 
 
     # --------------------------------------------------------
@@ -66,48 +111,131 @@ def process_document(input_file: Path) -> dict:
 
     records = []
 
-    for index, row in enumerate(rows, start=1):
+    confidence_records = []
 
+    for index, row in enumerate(
+        rows,
+        start=1
+    ):
+
+        # ----------------------------------------------------
         # Convert OCR row into columns
-        columns = row_to_columns(row)
+        # ----------------------------------------------------
 
+        columns = row_to_columns(
+            row
+        )
+
+
+        # ----------------------------------------------------
         # Convert columns into structured fields
-        record = map_row_to_fields(columns)
+        # ----------------------------------------------------
 
-        # Ignore headers, footers and other non-data rows
+        record = map_row_to_fields(
+            columns
+        )
+
+
+        # ----------------------------------------------------
+        # Ignore headers, footers and invalid rows
+        # ----------------------------------------------------
+
         if record is None:
+
             continue
+
 
         # ----------------------------------------------------
         # STEP 4: VALIDATION
         # ----------------------------------------------------
 
-        errors = validate_record(record)
+        errors = validate_record(
+            record
+        )
+
 
         if errors:
 
-            print(f"Row {index}: INVALID")
+            print(
+                f"Row {index}: INVALID"
+            )
 
             for error in errors:
-                print(f"  - {error}")
+
+                print(
+                    f"  - {error}"
+                )
 
             continue
 
 
+        # ----------------------------------------------------
         # Valid record
-        records.append(record)
+        # ----------------------------------------------------
 
-        print(f"Row {index}: VALID")
+        records.append(
+            record
+        )
+
+
+        print(
+            f"Row {index}: VALID"
+        )
+
+
+        # ----------------------------------------------------
+        # STEP 5: CONFIDENCE
+        # ----------------------------------------------------
+
+        confidence = build_record_confidence(
+            record,
+            row
+        )
+
+        confidence_records.append(
+            confidence
+        )
+
+        print(
+            f"  Confidence: "
+            f"{confidence['confidence']}%"
+        )
+
+        print(
+            f"  Quality: "
+            f"{confidence['quality']}"
+        )
 
 
     # --------------------------------------------------------
-    # STEP 5: FINAL JSON STRUCTURE
+    # STEP 6: DOCUMENT CONFIDENCE
+    # --------------------------------------------------------
+
+    confidence_summary = (
+        build_document_confidence_summary(
+            confidence_records
+        )
+    )
+
+
+    # --------------------------------------------------------
+    # STEP 7: FINAL RESULT
     # --------------------------------------------------------
 
     result = {
+
         "document_id": input_file.stem,
-        "records": records
+
+        "records": records,
+
+        "confidence": {
+
+            "records": confidence_records,
+
+            "summary": confidence_summary
+        }
     }
+
 
     return result
 
@@ -116,16 +244,19 @@ def process_document(input_file: Path) -> dict:
 # SAVE JSON
 # ============================================================
 
-def save_json(data: dict, output_file: Path) -> None:
+def save_json(
+    data: dict,
+    output_file: Path
+) -> None:
     """
     Save extracted data as formatted JSON.
     """
 
-    # Create output folder if necessary
     output_file.parent.mkdir(
         parents=True,
         exist_ok=True
     )
+
 
     with output_file.open(
         "w",
@@ -147,23 +278,31 @@ def save_json(data: dict, output_file: Path) -> None:
 def main():
 
     print()
-    print("========================================")
-    print("       INTELLICAPTURE-AI PIPELINE")
-    print("========================================")
+
+    print(
+        "========================================"
+    )
+
+    print(
+        "       INTELLICAPTURE-AI PIPELINE"
+    )
+
+    print(
+        "========================================"
+    )
+
     print()
 
+
     # --------------------------------------------------------
-    # ASK WHICH DOCUMENT TO PROCESS
+    # ASK DOCUMENT
     # --------------------------------------------------------
 
     document_id = input(
-        "Enter document ID (example: document_001): "
+        "Enter document ID "
+        "(example: document_001): "
     ).strip()
 
-
-    # --------------------------------------------------------
-    # VALIDATE DOCUMENT ID
-    # --------------------------------------------------------
 
     if not document_id:
 
@@ -207,7 +346,7 @@ def main():
 
 
     # --------------------------------------------------------
-    # CHECK DOCUMENT FOLDER
+    # CHECK DOCUMENT
     # --------------------------------------------------------
 
     if not document_folder.exists():
@@ -219,7 +358,7 @@ def main():
 
 
     # --------------------------------------------------------
-    # CHECK INPUT IMAGE
+    # CHECK IMAGE
     # --------------------------------------------------------
 
     if not input_file.exists():
@@ -231,9 +370,19 @@ def main():
 
 
     print()
-    print(f"Document : {document_id}")
-    print(f"Input    : {input_file}")
-    print(f"Output   : {output_file}")
+
+    print(
+        f"Document : {document_id}"
+    )
+
+    print(
+        f"Input    : {input_file}"
+    )
+
+    print(
+        f"Output   : {output_file}"
+    )
+
     print()
 
 
@@ -241,11 +390,13 @@ def main():
     # RUN PIPELINE
     # --------------------------------------------------------
 
-    result = process_document(input_file)
+    result = process_document(
+        input_file
+    )
 
 
     # --------------------------------------------------------
-    # SAVE RESULT
+    # SAVE
     # --------------------------------------------------------
 
     save_json(
@@ -259,9 +410,19 @@ def main():
     # --------------------------------------------------------
 
     print()
-    print("========================================")
-    print("       EXTRACTION COMPLETE")
-    print("========================================")
+
+    print(
+        "========================================"
+    )
+
+    print(
+        "       EXTRACTION COMPLETE"
+    )
+
+    print(
+        "========================================"
+    )
+
     print()
 
     print(
@@ -269,12 +430,25 @@ def main():
         f"{len(result['records'])}"
     )
 
-    print()
     print(
-        f"Output saved to:"
+        f"Average confidence: "
+        f"{result['confidence']['summary']['average_confidence']}%"
     )
 
-    print(output_file)
+    print(
+        f"Quality: "
+        f"{result['confidence']['summary']['quality']}"
+    )
+
+    print()
+
+    print(
+        "Output saved to:"
+    )
+
+    print(
+        output_file
+    )
 
     print()
 
@@ -284,4 +458,5 @@ def main():
 # ============================================================
 
 if __name__ == "__main__":
+
     main()

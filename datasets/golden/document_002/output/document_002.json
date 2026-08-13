@@ -19,5 +19,33 @@
       "product": "Keyboard",
       "amount": "2500"
     }
-  ]
+  ],
+  "confidence": {
+    "records": [
+      {
+        "confidence": 86.8,
+        "quality": "HIGH",
+        "word_count": 5,
+        "requires_review": false
+      },
+      {
+        "confidence": 94.2,
+        "quality": "HIGH",
+        "word_count": 5,
+        "requires_review": false
+      },
+      {
+        "confidence": 92.6,
+        "quality": "HIGH",
+        "word_count": 5,
+        "requires_review": false
+      }
+    ],
+    "summary": {
+      "average_confidence": 91.2,
+      "quality": "HIGH",
+      "records_review_required": 0,
+      "total_records": 3
+    }
+  }
 }
