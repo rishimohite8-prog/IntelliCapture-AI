@@ -8,26 +8,41 @@ import tempfile
 # PROJECT PATHS
 # ============================================================
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = (
+    Path(__file__)
+    .resolve()
+    .parents[3]
+)
 
-AI_ENGINE_PATH = PROJECT_ROOT / "ai-engine"
+AI_ENGINE_PATH = (
+    PROJECT_ROOT
+    / "ai-engine"
+)
 
 if str(AI_ENGINE_PATH) not in sys.path:
-    sys.path.insert(0, str(AI_ENGINE_PATH))
+
+    sys.path.insert(
+        0,
+        str(AI_ENGINE_PATH)
+    )
 
 
 # ============================================================
 # INTELLICAPTURE EXTRACTION ENGINE
 # ============================================================
 
-from extraction.pipeline import process_document
+from extraction.pipeline import (
+    process_document
+)
 
 
 # ============================================================
 # UPLOAD CONFIGURATION
 # ============================================================
 
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_FILE_SIZE = (
+    10 * 1024 * 1024
+)  # 10 MB
 
 
 ALLOWED_EXTENSIONS = {
@@ -48,19 +63,28 @@ def process_uploaded_file(
     filename: str,
     file_content: bytes
 ) -> dict:
+    """
+    Process an uploaded physical document.
 
-    # --------------------------------------------------------
-    # Safe filename
-    # --------------------------------------------------------
+    Returns:
+        document_id
+        filename
+        records
+        confidence
+    """
+
+    # ========================================================
+    # SAFE FILENAME
+    # ========================================================
 
     original_filename = Path(
         filename
     ).name
 
 
-    # --------------------------------------------------------
-    # Validate filename
-    # --------------------------------------------------------
+    # ========================================================
+    # VALIDATE FILENAME
+    # ========================================================
 
     if not original_filename:
 
@@ -69,18 +93,18 @@ def process_uploaded_file(
         )
 
 
-    # --------------------------------------------------------
-    # Determine extension
-    # --------------------------------------------------------
+    # ========================================================
+    # DETERMINE EXTENSION
+    # ========================================================
 
     extension = Path(
         original_filename
     ).suffix.lower()
 
 
-    # --------------------------------------------------------
-    # Validate file type
-    # --------------------------------------------------------
+    # ========================================================
+    # VALIDATE FILE TYPE
+    # ========================================================
 
     if extension not in ALLOWED_EXTENSIONS:
 
@@ -91,9 +115,9 @@ def process_uploaded_file(
         )
 
 
-    # --------------------------------------------------------
-    # Validate file content
-    # --------------------------------------------------------
+    # ========================================================
+    # VALIDATE FILE CONTENT
+    # ========================================================
 
     if not file_content:
 
@@ -102,9 +126,9 @@ def process_uploaded_file(
         )
 
 
-    # --------------------------------------------------------
-    # Validate file size
-    # --------------------------------------------------------
+    # ========================================================
+    # VALIDATE FILE SIZE
+    # ========================================================
 
     file_size = len(
         file_content
@@ -117,24 +141,25 @@ def process_uploaded_file(
         )
 
 
-    # --------------------------------------------------------
-    # Document ID
-    # --------------------------------------------------------
+    # ========================================================
+    # DOCUMENT ID
+    # ========================================================
 
     document_id = Path(
         original_filename
     ).stem
 
 
-    # --------------------------------------------------------
-    # Temporary directory
-    # --------------------------------------------------------
+    # ========================================================
+    # TEMPORARY DIRECTORY
+    # ========================================================
 
     temp_directory = Path(
         tempfile.mkdtemp(
             prefix="intellicapture_"
         )
     )
+
 
     temp_file = (
         temp_directory
@@ -144,9 +169,9 @@ def process_uploaded_file(
 
     try:
 
-        # ----------------------------------------------------
-        # Save uploaded document
-        # ----------------------------------------------------
+        # ====================================================
+        # SAVE UPLOADED DOCUMENT
+        # ====================================================
 
         with temp_file.open(
             "wb"
@@ -157,31 +182,47 @@ def process_uploaded_file(
             )
 
 
-        # ----------------------------------------------------
-        # Run IntelliCapture pipeline
-        # ----------------------------------------------------
+        # ====================================================
+        # RUN INTELLICAPTURE PIPELINE
+        # ====================================================
 
         result = process_document(
             temp_file
         )
 
 
-        # ----------------------------------------------------
-        # Return structured result
-        # ----------------------------------------------------
+        # ====================================================
+        # EXTRACT RESULTS
+        # ====================================================
+
+        records = result.get(
+            "records",
+            []
+        )
+
+        confidence = result.get(
+            "confidence",
+            {}
+        )
+
+
+        # ====================================================
+        # RETURN STRUCTURED RESULT
+        # ====================================================
 
         return {
             "document_id": document_id,
             "filename": original_filename,
-            "records": result["records"]
+            "records": records,
+            "confidence": confidence
         }
 
 
     finally:
 
-        # ----------------------------------------------------
-        # Clean temporary directory
-        # ----------------------------------------------------
+        # ====================================================
+        # CLEAN TEMPORARY DIRECTORY
+        # ====================================================
 
         shutil.rmtree(
             temp_directory,

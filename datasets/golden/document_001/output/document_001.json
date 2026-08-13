@@ -38,37 +38,168 @@
         "confidence": 96.0,
         "quality": "HIGH",
         "word_count": 7,
-        "requires_review": false
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Rahul Patil",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "01/08/2026",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Laptop",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "55000",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
       },
       {
         "confidence": 96.0,
         "quality": "HIGH",
         "word_count": 6,
-        "requires_review": false
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Amit Sharma",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "02/08/2026",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Monitor",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "24000",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
       },
       {
         "confidence": 96.0,
         "quality": "HIGH",
         "word_count": 6,
-        "requires_review": false
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Priya Shah",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "03/08/2026",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Keyboard",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "4500",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
       },
       {
         "confidence": 95.83,
         "quality": "HIGH",
         "word_count": 6,
-        "requires_review": false
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Neha Joshi",
+            "confidence": 95.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "04/08/2026",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Mouse",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "1600",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
       },
       {
         "confidence": 96.0,
         "quality": "HIGH",
         "word_count": 6,
-        "requires_review": false
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Vikas More",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "05/08/2026",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Printer",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "12500",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
       }
     ],
     "summary": {
       "average_confidence": 95.97,
       "quality": "HIGH",
       "records_review_required": 0,
+      "fields_review_required": 0,
       "total_records": 5
     }
   }

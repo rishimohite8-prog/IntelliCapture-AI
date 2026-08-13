@@ -84,7 +84,7 @@ async def process_document(
 
 
         # ----------------------------------------------------
-        # Validate that something was uploaded
+        # Validate uploaded content
         # ----------------------------------------------------
 
         if not file_content:
@@ -110,13 +110,30 @@ async def process_document(
         # ----------------------------------------------------
 
         return DocumentResponse(
+
             success=True,
-            document_id=result["document_id"],
-            filename=result["filename"],
+
+            document_id=result[
+                "document_id"
+            ],
+
+            filename=result[
+                "filename"
+            ],
+
             records_extracted=len(
-                result["records"]
+                result[
+                    "records"
+                ]
             ),
-            records=result["records"]
+
+            records=result[
+                "records"
+            ],
+
+            confidence=result.get(
+                "confidence"
+            )
         )
 
 
