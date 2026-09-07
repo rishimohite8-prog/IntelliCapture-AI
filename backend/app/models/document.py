@@ -8,13 +8,9 @@ from pydantic import BaseModel
 # ============================================================
 
 class FieldConfidence(BaseModel):
-
     value: str
-
     confidence: float
-
     quality: str
-
     requires_review: bool
 
 
@@ -23,13 +19,9 @@ class FieldConfidence(BaseModel):
 # ============================================================
 
 class RecordConfidence(BaseModel):
-
     confidence: float
-
     quality: str
-
     word_count: int
-
     requires_review: bool
 
     fields: Dict[
@@ -43,15 +35,10 @@ class RecordConfidence(BaseModel):
 # ============================================================
 
 class ConfidenceSummary(BaseModel):
-
     average_confidence: float
-
     quality: str
-
     records_review_required: int
-
     fields_review_required: int
-
     total_records: int
 
 
@@ -60,7 +47,6 @@ class ConfidenceSummary(BaseModel):
 # ============================================================
 
 class DocumentConfidence(BaseModel):
-
     records: List[
         RecordConfidence
     ]
@@ -73,13 +59,9 @@ class DocumentConfidence(BaseModel):
 # ============================================================
 
 class ExtractedRecord(BaseModel):
-
     customer: str
-
     date: str
-
     product: str
-
     amount: str
 
 
@@ -88,13 +70,9 @@ class ExtractedRecord(BaseModel):
 # ============================================================
 
 class DocumentResponse(BaseModel):
-
     success: bool
-
     document_id: str
-
     filename: str
-
     records_extracted: int
 
     records: List[

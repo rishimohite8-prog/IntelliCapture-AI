@@ -1,4 +1,5 @@
 from pathlib import Path
+from database.storage.database import save_document
 import sys
 import shutil
 import tempfile
@@ -28,6 +29,15 @@ if str(AI_ENGINE_PATH) not in sys.path:
 
 
 # ============================================================
+# DATABASE
+# ============================================================
+
+from database.storage.database import (
+    save_document
+)
+
+
+# ============================================================
 # INTELLICAPTURE EXTRACTION ENGINE
 # ============================================================
 
@@ -42,8 +52,7 @@ from extraction.pipeline import (
 
 MAX_FILE_SIZE = (
     10 * 1024 * 1024
-)  # 10 MB
-
+)
 
 ALLOWED_EXTENSIONS = {
     ".png",
@@ -66,11 +75,21 @@ def process_uploaded_file(
     """
     Process an uploaded physical document.
 
-    Returns:
-        document_id
-        filename
-        records
-        confidence
+    Pipeline:
+
+        Upload
+          ↓
+        OCR
+          ↓
+        Extraction
+          ↓
+        Validation
+          ↓
+        Confidence
+          ↓
+        SQLite
+          ↓
+        API
     """
 
     # ========================================================
@@ -160,7 +179,6 @@ def process_uploaded_file(
         )
     )
 
-
     temp_file = (
         temp_directory
         / f"{document_id}{extension}"
@@ -170,7 +188,7 @@ def process_uploaded_file(
     try:
 
         # ====================================================
-        # SAVE UPLOADED DOCUMENT
+        # SAVE TEMPORARY UPLOAD
         # ====================================================
 
         with temp_file.open(
@@ -183,26 +201,67 @@ def process_uploaded_file(
 
 
         # ====================================================
-        # RUN INTELLICAPTURE PIPELINE
+        # RUN EXTRACTION PIPELINE
         # ====================================================
 
         result = process_document(
             temp_file
         )
+        # ========================================================
+        # SAVE PROCESSED DOCUMENT TO DATABASE
+        # ========================================================
 
+        database_document = {
+            "document_id": document_id,
+            "filename": original_filename,
+            "records": result.get(
+                "records",
+                []
+            ),
+            "confidence": result.get(
+               "confidence",
+               {}
+            )
+        }
 
-        # ====================================================
-        # EXTRACT RESULTS
-        # ====================================================
-
-        records = result.get(
-            "records",
-            []
+        save_document(
+            database_document
         )
 
-        confidence = result.get(
-            "confidence",
-            {}
+        # ====================================================
+        # BUILD DATABASE DOCUMENT
+        # ====================================================
+
+        database_document = {
+
+            "document_id": document_id,
+
+            "filename": original_filename,
+
+            "records": result.get(
+                "records",
+                []
+            ),
+
+            "confidence": result.get(
+                "confidence",
+                {}
+            )
+        }
+
+
+        # ====================================================
+        # SAVE TO SQLITE
+        # ====================================================
+
+        database_id = save_document(
+            database_document
+        )
+
+
+        print(
+            f"Document saved to database. "
+            f"Database ID: {database_id}"
         )
 
 
@@ -210,18 +269,13 @@ def process_uploaded_file(
         # RETURN STRUCTURED RESULT
         # ====================================================
 
-        return {
-            "document_id": document_id,
-            "filename": original_filename,
-            "records": records,
-            "confidence": confidence
-        }
+        return database_document
 
 
     finally:
 
         # ====================================================
-        # CLEAN TEMPORARY DIRECTORY
+        # CLEAN TEMPORARY FILES
         # ====================================================
 
         shutil.rmtree(
