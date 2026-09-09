@@ -128,11 +128,11 @@ def evaluate_document(
 
     document_id = document_folder.name
 
-    expected_file = (
-        document_folder
-        / "expected"
-        / "expected.json"
-    )
+    expected_file = document_folder / "expected.json"
+
+    if not expected_file.exists():
+        expected_file = document_folder / "expected" / "expected.json"
+    
 
     actual_file = (
         document_folder

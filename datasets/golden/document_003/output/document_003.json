@@ -1,0 +1,96 @@
+{
+  "document_id": "document_003",
+  "layout": {
+    "type": "FORM",
+    "statistics": {
+      "word_count": 22,
+      "line_count": 7,
+      "key_value_lines": 5,
+      "column_alignment": 0.375,
+      "row_consistency": 0.922,
+      "horizontal_alignment": 0.913,
+      "spacing_consistency": 0.895,
+      "average_words_per_line": 3.143
+    }
+  },
+  "records": [
+    {
+      "customer": "Rahul Patil",
+      "date": "14/08/2026",
+      "product": "Laptop",
+      "amount": "55000"
+    }
+  ],
+  "confidence": {
+    "records": [
+      {
+        "confidence": 83.82,
+        "quality": "MEDIUM",
+        "word_count": 22,
+        "requires_review": true,
+        "fields": {
+          "customer": {
+            "value": "Rahul Patil",
+            "confidence": 95.5,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "14/08/2026",
+            "confidence": 78.0,
+            "quality": "MEDIUM",
+            "requires_review": true
+          },
+          "product": {
+            "value": "Laptop",
+            "confidence": 94.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "55000",
+            "confidence": 92.0,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
+      }
+    ],
+    "summary": {
+      "average_confidence": 83.82,
+      "quality": "MEDIUM",
+      "records_review_required": 1,
+      "fields_review_required": 1,
+      "total_records": 1
+    }
+  },
+  "form": {
+    "fields": {
+      "Customer": {
+        "value": "Rahul Patil",
+        "confidence": 95.5
+      },
+      "Date": {
+        "value": "14/08/2026",
+        "confidence": 78.0
+      },
+      "Product": {
+        "value": "Laptop",
+        "confidence": 94.0
+      },
+      "Amount": {
+        "value": "55000",
+        "confidence": 92.0
+      },
+      "City": {
+        "value": "Nagpur",
+        "confidence": 95.0
+      },
+      "Status": {
+        "value": "Paid",
+        "confidence": 78.0
+      }
+    },
+    "field_count": 6
+  }
+}

@@ -24,7 +24,6 @@ AI_ENGINE_PATH = (
 )
 
 if str(AI_ENGINE_PATH) not in sys.path:
-
     sys.path.insert(
         0,
         str(AI_ENGINE_PATH)
@@ -51,6 +50,10 @@ from extraction.field_mapper import (
     map_row_to_fields
 )
 
+from extraction.form_extractor import (
+    extract_form_fields
+)
+
 from validation.record_validator import (
     validate_record
 )
@@ -58,6 +61,10 @@ from validation.record_validator import (
 from confidence.confidence_engine import (
     build_record_confidence,
     build_document_confidence_summary
+)
+
+from layout.layout_analyzer import (
+    analyze_layout
 )
 
 
@@ -77,11 +84,9 @@ def process_document(
           ↓
         OCR
           ↓
-        Row Detection
+        Layout Analysis
           ↓
-        Column Detection
-          ↓
-        Field Mapping
+        Layout-specific Extraction
           ↓
         Validation
           ↓
@@ -109,7 +114,37 @@ def process_document(
 
 
     # ========================================================
-    # STEP 2: ROW DETECTION
+    # STEP 2: LAYOUT ANALYSIS
+    # ========================================================
+
+    print(
+        "Analyzing document layout..."
+    )
+
+    layout_analysis = analyze_layout(
+        words
+    )
+
+    layout_type = layout_analysis[
+        "layout_type"
+    ]
+
+    layout_statistics = layout_analysis[
+        "statistics"
+    ]
+
+    print(
+        f"Detected layout: {layout_type}"
+    )
+
+    print(
+        f"Layout statistics: "
+        f"{layout_statistics}"
+    )
+
+
+    # ========================================================
+    # STEP 3: ROW DETECTION
     # ========================================================
 
     rows = group_words_into_rows(
@@ -122,7 +157,7 @@ def process_document(
 
 
     # ========================================================
-    # STEP 3: FIELD EXTRACTION
+    # STORAGE
     # ========================================================
 
     records = []
@@ -130,134 +165,328 @@ def process_document(
     confidence_records = []
 
 
-    for index, row in enumerate(
-        rows,
-        start=1
-    ):
+    # ========================================================
+    # FORM DOCUMENT
+    # ========================================================
 
-        # ----------------------------------------------------
-        # COLUMN DETECTION
-        # ----------------------------------------------------
+    if layout_type == "FORM":
 
-        columns = row_to_columns(
-            row
-        )
-
-
-        # ----------------------------------------------------
-        # FIELD MAPPING
-        # ----------------------------------------------------
-
-        record = map_row_to_fields(
-            columns
-        )
-
-
-        # ----------------------------------------------------
-        # IGNORE NON-DATA ROWS
-        # ----------------------------------------------------
-
-        if record is None:
-
-            continue
-
-
-        # ====================================================
-        # STEP 4: VALIDATION
-        # ====================================================
-
-        errors = validate_record(
-            record
-        )
-
-
-        if errors:
-
-            print(
-                f"Row {index}: INVALID"
-            )
-
-            for error in errors:
-
-                print(
-                    f"  - {error}"
-                )
-
-            continue
-
-
-        # ====================================================
-        # VALID RECORD
-        # ====================================================
-
-        records.append(
-            record
-        )
-
-
+        print()
         print(
-            f"Row {index}: VALID"
-        )
-
-
-        # ====================================================
-        # STEP 5: CONFIDENCE ANALYSIS
-        # ====================================================
-
-        confidence = build_record_confidence(
-            record,
-            row
-        )
-
-
-        confidence_records.append(
-            confidence
-        )
-
-
-        print(
-            f"  Confidence: "
-            f"{confidence['confidence']}%"
+            "FORM layout detected."
         )
 
         print(
-            f"  Quality: "
-            f"{confidence['quality']}"
+            "Extracting form fields..."
         )
 
 
         # ----------------------------------------------------
-        # FIELD CONFIDENCE
+        # EXTRACT FORM FIELDS
         # ----------------------------------------------------
 
-        fields = confidence.get(
+        form_result = extract_form_fields(
+            rows
+        )
+
+        form_fields = form_result.get(
             "fields",
             {}
         )
 
 
-        for field_name, field_data in fields.items():
+        print(
+            f"Form fields extracted: "
+            f"{len(form_fields)}"
+        )
 
-            print(
-                f"    {field_name}: "
-                f"{field_data['confidence']}% "
-                f"({field_data['quality']})"
+
+        # ====================================================
+        # CONVERT FORM FIELDS INTO RECORD
+        # ====================================================
+
+        record = {}
+
+
+        field_mapping = {
+            "customer": "Customer",
+            "date": "Date",
+            "product": "Product",
+            "amount": "Amount",
+        }
+
+
+        for record_field, form_field in field_mapping.items():
+
+            if form_field in form_fields:
+
+                record[
+                    record_field
+                ] = form_fields[
+                    form_field
+                ][
+                    "value"
+                ]
+
+
+        # ====================================================
+        # VALIDATE FORM RECORD
+        # ====================================================
+
+        if record:
+
+            errors = validate_record(
+                record
             )
 
 
-        # ----------------------------------------------------
-        # REVIEW FLAG
-        # ----------------------------------------------------
+            if errors:
 
-        if confidence["requires_review"]:
+                print(
+                    "FORM RECORD: INVALID"
+                )
 
-            print(
-                "  ⚠ REVIEW REQUIRED"
-            )
+                for error in errors:
+
+                    print(
+                        f"  - {error}"
+                    )
+
+
+            else:
+
+                records.append(
+                    record
+                )
+
+                print(
+                    "FORM RECORD: VALID"
+                )
+
+
+                # =================================================
+                # FORM CONFIDENCE
+                # =================================================
+
+                # group_words_into_rows() returns:
+                #
+                # [
+                #     [word, word, word],
+                #     [word, word, word],
+                #     ...
+                # ]
+                #
+                # Therefore each line is already a list of
+                # OCR words. Flatten all rows into one list.
+
+                form_row = []
+
+                for line in rows:
+
+                    form_row.extend(
+                        line
+                    )
+
+
+                confidence = (
+                    build_record_confidence(
+                        record,
+                        form_row
+                    )
+                )
+
+
+                confidence_records.append(
+                    confidence
+                )
+
+
+                print(
+                    f"  Confidence: "
+                    f"{confidence['confidence']}%"
+                )
+
+                print(
+                    f"  Quality: "
+                    f"{confidence['quality']}"
+                )
+
+
+                # ------------------------------------------------
+                # FIELD CONFIDENCE
+                # ------------------------------------------------
+
+                fields = confidence.get(
+                    "fields",
+                    {}
+                )
+
+
+                for field_name, field_data in fields.items():
+
+                    print(
+                        f"    {field_name}: "
+                        f"{field_data['confidence']}% "
+                        f"({field_data['quality']})"
+                    )
+
+
+                # ------------------------------------------------
+                # REVIEW FLAG
+                # ------------------------------------------------
+
+                if confidence[
+                    "requires_review"
+                ]:
+
+                    print(
+                        "  REVIEW REQUIRED"
+                    )
 
 
     # ========================================================
-    # STEP 6: DOCUMENT CONFIDENCE
+    # TABLE / ROW REGISTER
+    # ========================================================
+
+    else:
+
+        print()
+        print(
+            "Using row/column extraction pipeline..."
+        )
+
+
+        for index, row in enumerate(
+            rows,
+            start=1
+        ):
+
+            # ------------------------------------------------
+            # COLUMN DETECTION
+            # ------------------------------------------------
+
+            columns = row_to_columns(
+                row
+            )
+
+
+            # ------------------------------------------------
+            # FIELD MAPPING
+            # ------------------------------------------------
+
+            record = map_row_to_fields(
+                columns
+            )
+
+
+            # ------------------------------------------------
+            # IGNORE NON-DATA ROWS
+            # ------------------------------------------------
+
+            if record is None:
+                continue
+
+
+            # =================================================
+            # VALIDATION
+            # =================================================
+
+            errors = validate_record(
+                record
+            )
+
+
+            if errors:
+
+                print(
+                    f"Row {index}: INVALID"
+                )
+
+                for error in errors:
+
+                    print(
+                        f"  - {error}"
+                    )
+
+                continue
+
+
+            # =================================================
+            # VALID RECORD
+            # =================================================
+
+            records.append(
+                record
+            )
+
+
+            print(
+                f"Row {index}: VALID"
+            )
+
+
+            # =================================================
+            # CONFIDENCE ANALYSIS
+            # =================================================
+
+            confidence = (
+                build_record_confidence(
+                    record,
+                    row
+                )
+            )
+
+
+            confidence_records.append(
+                confidence
+            )
+
+
+            print(
+                f"  Confidence: "
+                f"{confidence['confidence']}%"
+            )
+
+            print(
+                f"  Quality: "
+                f"{confidence['quality']}"
+            )
+
+
+            # ------------------------------------------------
+            # FIELD CONFIDENCE
+            # ------------------------------------------------
+
+            fields = confidence.get(
+                "fields",
+                {}
+            )
+
+
+            for field_name, field_data in fields.items():
+
+                print(
+                    f"    {field_name}: "
+                    f"{field_data['confidence']}% "
+                    f"({field_data['quality']})"
+                )
+
+
+            # ------------------------------------------------
+            # REVIEW FLAG
+            # ------------------------------------------------
+
+            if confidence[
+                "requires_review"
+            ]:
+
+                print(
+                    "  REVIEW REQUIRED"
+                )
+
+
+    # ========================================================
+    # DOCUMENT CONFIDENCE
     # ========================================================
 
     confidence_summary = (
@@ -268,17 +497,34 @@ def process_document(
 
 
     # ========================================================
-    # STEP 7: FINAL RESULT
+    # FINAL RESULT
     # ========================================================
 
     result = {
 
         "document_id": input_file.stem,
 
-        # Existing structured records remain unchanged.
+        # ----------------------------------------------------
+        # DOCUMENT LAYOUT
+        # ----------------------------------------------------
+
+        "layout": {
+
+            "type": layout_type,
+
+            "statistics": layout_statistics
+        },
+
+        # ----------------------------------------------------
+        # STRUCTURED RECORDS
+        # ----------------------------------------------------
+
         "records": records,
 
-        # Confidence metadata is stored separately.
+        # ----------------------------------------------------
+        # CONFIDENCE DATA
+        # ----------------------------------------------------
+
         "confidence": {
 
             "records": confidence_records,
@@ -286,6 +532,24 @@ def process_document(
             "summary": confidence_summary
         }
     }
+
+
+    # ========================================================
+    # FORM-SPECIFIC DATA
+    # ========================================================
+
+    if layout_type == "FORM":
+
+        result[
+            "form"
+        ] = {
+
+            "fields": form_fields,
+
+            "field_count": len(
+                form_fields
+            )
+        }
 
 
     return result
@@ -299,9 +563,6 @@ def save_json(
     data: dict,
     output_file: Path
 ) -> None:
-    """
-    Save extracted data as formatted JSON.
-    """
 
     output_file.parent.mkdir(
         parents=True,
@@ -484,6 +745,11 @@ def main():
     print()
 
     print(
+        f"Layout detected: "
+        f"{result['layout']['type']}"
+    )
+
+    print(
         f"Records extracted: "
         f"{len(result['records'])}"
     )
@@ -508,6 +774,19 @@ def main():
         f"{summary['fields_review_required']}"
     )
 
+
+    # ========================================================
+    # FORM SUMMARY
+    # ========================================================
+
+    if result["layout"]["type"] == "FORM":
+
+        print(
+            f"Form fields extracted: "
+            f"{result['form']['field_count']}"
+        )
+
+
     print()
 
     print(
@@ -526,5 +805,4 @@ def main():
 # ============================================================
 
 if __name__ == "__main__":
-
     main()
