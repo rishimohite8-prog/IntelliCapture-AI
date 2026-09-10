@@ -1,0 +1,8 @@
+﻿INFORMACIÓN DEL CLIENTE
+
+Cliente: Rahul Patil
+Fecha: 14/08/2026
+Producto: Laptop
+Importe: 55000
+Ciudad: Nagpur
+Estado: Pagado

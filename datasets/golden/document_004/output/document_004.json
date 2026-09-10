@@ -1,0 +1,118 @@
+{
+  "document_id": "document_004",
+  "language": {
+    "code": "deu",
+    "name": "German",
+    "confidence": 91.25,
+    "script": "latin",
+    "script_confidence": 100.0,
+    "matched_markers": [
+      "betrag",
+      "bezahlt",
+      "datum",
+      "kunde",
+      "produkt",
+      "stadt",
+      "status"
+    ]
+  },
+  "layout": {
+    "type": "FORM",
+    "statistics": {
+      "word_count": 14,
+      "line_count": 7,
+      "key_value_lines": 6,
+      "column_alignment": 0.0,
+      "row_consistency": 0.857,
+      "horizontal_alignment": 0.928,
+      "spacing_consistency": 0.956,
+      "average_words_per_line": 2
+    }
+  },
+  "records": [
+    {
+      "customer": "Rahul Patil",
+      "date": "14/08/2026",
+      "product": "Laptop",
+      "amount": "55000"
+    }
+  ],
+  "confidence": {
+    "records": [
+      {
+        "confidence": 94.43,
+        "quality": "HIGH",
+        "word_count": 14,
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Rahul Patil",
+            "confidence": 91.5,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "14/08/2026",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Laptop",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "55000",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
+      }
+    ],
+    "summary": {
+      "average_confidence": 94.43,
+      "quality": "HIGH",
+      "records_review_required": 0,
+      "fields_review_required": 0,
+      "total_records": 1
+    }
+  },
+  "form": {
+    "fields": {
+      "customer": {
+        "label": "Kunde",
+        "value": "Rahul Patil",
+        "confidence": 91.5
+      },
+      "date": {
+        "label": "Datum",
+        "value": "14/08/2026",
+        "confidence": 96.0
+      },
+      "product": {
+        "label": "Produkt",
+        "value": "Laptop",
+        "confidence": 96.0
+      },
+      "amount": {
+        "label": "Betrag",
+        "value": "55000",
+        "confidence": 96.0
+      },
+      "city": {
+        "label": "Stadt",
+        "value": "Nagpur",
+        "confidence": 93.0
+      },
+      "status": {
+        "label": "Status",
+        "value": "Bezahlt",
+        "confidence": 91.0
+      }
+    },
+    "field_count": 6
+  }
+}

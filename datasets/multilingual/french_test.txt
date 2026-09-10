@@ -1,0 +1,8 @@
+﻿INFORMATIONS CLIENT
+
+Client: Rahul Patil
+Date: 14/08/2026
+Produit: Laptop
+Montant: 55000
+Ville: Nagpur
+Statut: Payé

@@ -1,0 +1,16 @@
+{
+  "records": [
+    {
+      "customer": "Rahul Patil",
+      "date": "16/08/2026",
+      "product": "Monitor",
+      "amount": "32000"
+    },
+    {
+      "customer": "Neha Joshi",
+      "date": "17/08/2026",
+      "product": "Keyboard",
+      "amount": "4500"
+    }
+  ]
+}

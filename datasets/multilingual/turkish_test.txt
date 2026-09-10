@@ -1,0 +1,8 @@
+﻿MÜŞTERİ BİLGİLERİ
+
+Müşteri: Rahul Patil
+Tarih: 14/08/2026
+Ürün: Laptop
+Tutar: 55000
+Şehir: Nagpur
+Durum: Ödendi

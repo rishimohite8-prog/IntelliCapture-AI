@@ -1,5 +1,31 @@
 {
   "document_id": "document_001",
+  "language": {
+    "code": "eng",
+    "name": "English",
+    "confidence": 65.0,
+    "script": "latin",
+    "script_confidence": 100.0,
+    "matched_markers": [
+      "amount",
+      "customer",
+      "date",
+      "product"
+    ]
+  },
+  "layout": {
+    "type": "ROW_REGISTER",
+    "statistics": {
+      "word_count": 47,
+      "line_count": 8,
+      "key_value_lines": 0,
+      "column_alignment": 0.462,
+      "row_consistency": 0.835,
+      "horizontal_alignment": 0.856,
+      "spacing_consistency": 0.856,
+      "average_words_per_line": 5.875
+    }
+  },
   "records": [
     {
       "customer": "Rahul Patil",

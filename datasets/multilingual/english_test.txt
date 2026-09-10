@@ -1,0 +1,8 @@
+﻿CUSTOMER INFORMATION
+
+Customer: Rahul Patil
+Date: 14/08/2026
+Product: Laptop
+Amount: 55000
+City: Nagpur
+Status: Paid

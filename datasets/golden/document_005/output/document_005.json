@@ -1,0 +1,119 @@
+{
+  "document_id": "document_005",
+  "language": {
+    "code": "spa",
+    "name": "Spanish",
+    "confidence": 100.0,
+    "script": "latin",
+    "script_confidence": 100.0,
+    "matched_markers": [
+      "ciudad",
+      "cliente",
+      "estado",
+      "fecha",
+      "importe",
+      "información",
+      "pagado",
+      "producto"
+    ]
+  },
+  "layout": {
+    "type": "FORM",
+    "statistics": {
+      "word_count": 18,
+      "line_count": 7,
+      "key_value_lines": 6,
+      "column_alignment": 0.0,
+      "row_consistency": 0.683,
+      "horizontal_alignment": 0.774,
+      "spacing_consistency": 0.937,
+      "average_words_per_line": 2.571
+    }
+  },
+  "records": [
+    {
+      "customer": "Rahul Patil",
+      "date": "14/08/2026",
+      "product": "Laptop",
+      "amount": "55000"
+    }
+  ],
+  "confidence": {
+    "records": [
+      {
+        "confidence": 94.67,
+        "quality": "HIGH",
+        "word_count": 18,
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Rahul Patil",
+            "confidence": 89.5,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "14/08/2026",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Laptop",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "55000",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
+      }
+    ],
+    "summary": {
+      "average_confidence": 94.67,
+      "quality": "HIGH",
+      "records_review_required": 0,
+      "fields_review_required": 0,
+      "total_records": 1
+    }
+  },
+  "form": {
+    "fields": {
+      "customer": {
+        "label": "Cliente",
+        "value": "Rahul Patil",
+        "confidence": 89.5
+      },
+      "date": {
+        "label": "Fecha",
+        "value": "14/08/2026",
+        "confidence": 96.0
+      },
+      "product": {
+        "label": "Producto",
+        "value": "Laptop",
+        "confidence": 96.0
+      },
+      "amount": {
+        "label": "Importe",
+        "value": "55000",
+        "confidence": 96.0
+      },
+      "city": {
+        "label": "Ciudad",
+        "value": "Nagpur",
+        "confidence": 92.0
+      },
+      "status": {
+        "label": "Estado",
+        "value": "Pagado",
+        "confidence": 96.0
+      }
+    },
+    "field_count": 6
+  }
+}

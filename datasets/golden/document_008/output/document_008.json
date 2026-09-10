@@ -1,0 +1,120 @@
+{
+  "document_id": "document_008",
+  "language": {
+    "code": "por",
+    "name": "Portuguese",
+    "confidence": 38.75,
+    "script": "latin",
+    "script_confidence": 100.0,
+    "matched_markers": [
+      "pago"
+    ]
+  },
+  "layout": {
+    "type": "FREE_FORM",
+    "statistics": {
+      "word_count": 37,
+      "line_count": 7,
+      "key_value_lines": 0,
+      "column_alignment": 0.625,
+      "row_consistency": 0.815,
+      "horizontal_alignment": 0.949,
+      "spacing_consistency": 0.66,
+      "average_words_per_line": 5.286,
+      "prose_lines": 6
+    }
+  },
+  "records": [
+    {
+      "customer": "Rahul Patil",
+      "date": "16/08/2026",
+      "product": "Monitor",
+      "amount": "32000"
+    },
+    {
+      "customer": "Neha Joshi",
+      "date": "17/08/2026",
+      "product": "Keyboard",
+      "amount": "4500"
+    }
+  ],
+  "confidence": {
+    "records": [
+      {
+        "confidence": 93.08,
+        "quality": "HIGH",
+        "word_count": 37,
+        "requires_review": true,
+        "fields": {
+          "customer": {
+            "value": "Rahul Patil",
+            "confidence": 84.0,
+            "quality": "MEDIUM",
+            "requires_review": true
+          },
+          "date": {
+            "value": "16/08/2026",
+            "confidence": 93.08,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Monitor",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "32000",
+            "confidence": 93.08,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
+      },
+      {
+        "confidence": 93.08,
+        "quality": "HIGH",
+        "word_count": 37,
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Neha Joshi",
+            "confidence": 85.5,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "17/08/2026",
+            "confidence": 93.08,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Keyboard",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "4500",
+            "confidence": 93.08,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
+      }
+    ],
+    "summary": {
+      "average_confidence": 93.08,
+      "quality": "HIGH",
+      "records_review_required": 1,
+      "fields_review_required": 1,
+      "total_records": 2
+    }
+  },
+  "free_form": {
+    "text": "REGISTRO DE COMPRAS\nRahul Patil visitó la tienda el 16/08/2026.\nCompró un Monitor por 32000.\nEl pago fue completado correctamente.\nNeha Joshi visitó la tienda el 17/08/2026.\nCompró un Keyboard por 4500.\nEl pago fue completado correctamente.",
+    "record_count": 2
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "document_id": "document_006",
+  "language": {
+    "code": "eng",
+    "name": "English",
+    "confidence": 56.25,
+    "script": "latin",
+    "script_confidence": 100.0,
+    "matched_markers": [
+      "amount",
+      "customer",
+      "paid"
+    ]
+  },
+  "layout": {
+    "type": "FREE_FORM",
+    "statistics": {
+      "word_count": 37,
+      "line_count": 7,
+      "key_value_lines": 0,
+      "column_alignment": 0.25,
+      "row_consistency": 0.614,
+      "horizontal_alignment": 0.873,
+      "spacing_consistency": 0.728,
+      "average_words_per_line": 5.286,
+      "prose_lines": 4
+    }
+  },
+  "records": [
+    {
+      "customer": "Rahul Patil",
+      "date": "14/08/2026",
+      "product": "Laptop",
+      "amount": "55000"
+    },
+    {
+      "customer": "Priya Shah",
+      "date": "15/08/2026",
+      "product": "Keyboard",
+      "amount": "4500"
+    }
+  ],
+  "confidence": {
+    "records": [
+      {
+        "confidence": 95.73,
+        "quality": "HIGH",
+        "word_count": 37,
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Rahul Patil",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "14/08/2026",
+            "confidence": 95.73,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Laptop",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "55000",
+            "confidence": 95.73,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
+      },
+      {
+        "confidence": 95.73,
+        "quality": "HIGH",
+        "word_count": 37,
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Priya Shah",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "15/08/2026",
+            "confidence": 95.73,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Keyboard",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "4500",
+            "confidence": 95.73,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
+      }
+    ],
+    "summary": {
+      "average_confidence": 95.73,
+      "quality": "HIGH",
+      "records_review_required": 0,
+      "fields_review_required": 0,
+      "total_records": 2
+    }
+  },
+  "free_form": {
+    "text": "CUSTOMER PURCHASE RECORD\nRahul Patil visited on 14/08/2026.\nHe purchased a Laptop for 55000.\nPayment was completed.\nPriya Shah made a purchase on 15/08/2026.\nThe item was Keyboard and the amount paid was 4500.\nPayment was completed.",
+    "record_count": 2
+  }
+}

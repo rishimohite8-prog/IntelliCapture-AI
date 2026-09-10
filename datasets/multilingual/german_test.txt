@@ -1,0 +1,10 @@
+@"
+KUNDENINFORMATION
+
+Kunde: Rahul Patil
+Datum: 14/08/2026
+Produkt: Laptop
+Betrag: 55000
+Stadt: Nagpur
+Status: Bezahlt
+"@ | Set-Content ".\datasets\multilingual\german_test.txt" -Encoding UTF8

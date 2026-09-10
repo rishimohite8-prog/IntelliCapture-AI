@@ -1,0 +1,8 @@
+﻿KLANTINFORMATIE
+
+Klant: Rahul Patil
+Datum: 14/08/2026
+Product: Laptop
+Bedrag: 55000
+Stad: Nagpur
+Status: Betaald

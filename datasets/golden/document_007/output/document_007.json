@@ -1,0 +1,118 @@
+{
+  "document_id": "document_007",
+  "language": {
+    "code": "tur",
+    "name": "Turkish",
+    "confidence": 0.0,
+    "script": "latin",
+    "script_confidence": 100.0,
+    "matched_markers": []
+  },
+  "layout": {
+    "type": "FREE_FORM",
+    "statistics": {
+      "word_count": 35,
+      "line_count": 7,
+      "key_value_lines": 0,
+      "column_alignment": 0.364,
+      "row_consistency": 0.657,
+      "horizontal_alignment": 0.889,
+      "spacing_consistency": 0.649,
+      "average_words_per_line": 5,
+      "prose_lines": 4
+    }
+  },
+  "records": [
+    {
+      "customer": "Rahul Patil",
+      "date": "14/08/2026",
+      "product": "Laptop",
+      "amount": "55000"
+    },
+    {
+      "customer": "Priya Shah",
+      "date": "15/08/2026",
+      "product": "Keyboard",
+      "amount": "4500"
+    }
+  ],
+  "confidence": {
+    "records": [
+      {
+        "confidence": 93.03,
+        "quality": "HIGH",
+        "word_count": 35,
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Rahul Patil",
+            "confidence": 92.5,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "14/08/2026",
+            "confidence": 93.03,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Laptop",
+            "confidence": 95.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "55000",
+            "confidence": 93.03,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
+      },
+      {
+        "confidence": 93.03,
+        "quality": "HIGH",
+        "word_count": 35,
+        "requires_review": false,
+        "fields": {
+          "customer": {
+            "value": "Priya Shah",
+            "confidence": 92.5,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "date": {
+            "value": "15/08/2026",
+            "confidence": 93.03,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "product": {
+            "value": "Keyboard",
+            "confidence": 96.0,
+            "quality": "HIGH",
+            "requires_review": false
+          },
+          "amount": {
+            "value": "4500",
+            "confidence": 93.03,
+            "quality": "HIGH",
+            "requires_review": false
+          }
+        }
+      }
+    ],
+    "summary": {
+      "average_confidence": 93.03,
+      "quality": "HIGH",
+      "records_review_required": 0,
+      "fields_review_required": 0,
+      "total_records": 2
+    }
+  },
+  "free_form": {
+    "text": "KAUFNOTİZEN\nRahul Patil besuchte das Geschâft am 14/08/2026.\nEr kaufte einen Laptop für 55000.\nDie Zahlung wurde abgeschlossen.\nPriya Shah besuchte das Geschâft am 15/08/2026.\nSie kaufte ein Keyboard für 4500.\nDie Zahlung wurde abgeschlossen.",
+    "record_count": 2
+  }
+}

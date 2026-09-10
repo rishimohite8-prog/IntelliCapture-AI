@@ -167,6 +167,60 @@ def _count_key_value_lines(
 
 
 # ============================================================
+# PROSE DETECTION
+# ============================================================
+
+def _looks_like_prose(text: str) -> bool:
+
+    text = text.strip()
+
+    if not text:
+        return False
+
+    words = text.split()
+
+    if len(words) < 5:
+        return False
+
+    sentence_markers = (
+        ".",
+        "!",
+        "?",
+    )
+
+    has_sentence_punctuation = text.endswith(
+        sentence_markers
+    )
+
+    lowercase_words = sum(
+        1
+        for word in words
+        if word
+        and word[0].islower()
+    )
+
+    has_lowercase_flow = (
+        lowercase_words >= 2
+    )
+
+    return (
+        has_sentence_punctuation
+        or has_lowercase_flow
+    )
+
+
+def _count_prose_lines(
+    line_info: List[Dict]
+) -> int:
+
+    return sum(
+        1
+        for line in line_info
+        if _looks_like_prose(line["text"])
+    )
+
+
+# ============================================================
 # X-POSITION CLUSTERS
 # ============================================================
 
@@ -254,7 +308,6 @@ def _calculate_column_alignment(
         ):
             strong_columns += 1
 
-    # TABLE requires at least 3 repeated columns.
     if strong_columns < 3:
         return 0.0
 
@@ -466,6 +519,24 @@ def classify_layout(
         line_info
     )
 
+    prose_line_count = _count_prose_lines(
+        line_info
+    )
+
+    # --------------------------------------------------------
+    # FREE FORM
+    #
+    # Prose-style documents must be checked before
+    # ROW_REGISTER because natural sentences can still have
+    # strong horizontal alignment.
+    # --------------------------------------------------------
+
+    if (
+        prose_line_count >= 2
+        and average_words_per_line >= 4
+    ):
+        return FREE_FORM
+
     # --------------------------------------------------------
     # TABLE
     # --------------------------------------------------------
@@ -480,11 +551,6 @@ def classify_layout(
 
     # --------------------------------------------------------
     # ROW REGISTER
-    #
-    # IMPORTANT:
-    # A row register must contain multiple words/fields
-    # per row. This prevents scattered single-word layouts
-    # from being incorrectly classified as ROW_REGISTER.
     # --------------------------------------------------------
 
     if (
@@ -558,6 +624,10 @@ def analyze_layout(
                     line_info
                 ),
                 3
+            ),
+
+            "prose_lines": _count_prose_lines(
+                line_info
             ),
         },
 
