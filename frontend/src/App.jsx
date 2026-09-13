@@ -1,22 +1,137 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect, useState } from "react";
 import "./App.css";
 
 const API_URL = "http://127.0.0.1:8000";
 
+const REVIEW_PENDING = "PENDING";
+const REVIEW_APPROVED = "APPROVED";
+const REVIEW_REJECTED = "REJECTED";
+
+
+function normalizeConfidence(value) {
+  const number = Number(value);
+
+  if (Number.isNaN(number)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, number));
+}
+
+
+function normalizeReviewStatus(status) {
+  const normalized = String(status || REVIEW_PENDING).toUpperCase();
+
+  if (
+    normalized === REVIEW_APPROVED ||
+    normalized === REVIEW_REJECTED ||
+    normalized === REVIEW_PENDING
+  ) {
+    return normalized;
+  }
+
+  return REVIEW_PENDING;
+}
+
+
+function requiresHumanReview(record) {
+  return (
+    record?.requires_review === true ||
+    Number(record?.requires_review) === 1
+  );
+}
+
+
+function getQualityClass(quality) {
+  const normalized = String(quality || "").toUpperCase();
+
+  if (normalized === "HIGH") {
+    return "quality-high";
+  }
+
+  if (normalized === "MEDIUM") {
+    return "quality-medium";
+  }
+
+  return "quality-low";
+}
+
+
+function getReviewClass(status) {
+  const normalized = normalizeReviewStatus(status);
+
+  if (normalized === REVIEW_APPROVED) {
+    return "review-approved";
+  }
+
+  if (normalized === REVIEW_REJECTED) {
+    return "review-rejected";
+  }
+
+  return "review-pending";
+}
+
+
+function getReviewLabel(status) {
+  const normalized = normalizeReviewStatus(status);
+
+  if (normalized === REVIEW_APPROVED) {
+    return "APPROVED";
+  }
+
+  if (normalized === REVIEW_REJECTED) {
+    return "REJECTED";
+  }
+
+  return "PENDING";
+}
+
+
+function normalizeRecord(record) {
+  return {
+    ...record,
+    confidence: normalizeConfidence(record?.confidence),
+    review_status: normalizeReviewStatus(record?.review_status),
+  };
+}
+
+
+function normalizeDocument(document) {
+  if (!document) {
+    return null;
+  }
+
+  return {
+    ...document,
+    average_confidence: normalizeConfidence(
+      document.average_confidence
+    ),
+    records: Array.isArray(document.records)
+      ? document.records.map(normalizeRecord)
+      : [],
+  };
+}
+
+
 function App() {
   const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
+
   const [documents, setDocuments] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState(null);
 
+  const [reviewQueue, setReviewQueue] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [updateLoading, setUpdateLoading] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+
+  const [updateLoading, setUpdateLoading] = useState(null);
+  const [reviewActionLoading, setReviewActionLoading] = useState(null);
 
   const [error, setError] = useState("");
 
-  const [activePage, setActivePage] = useState("upload");
+  const [activePage, setActivePage] = useState("process");
 
   const [editingRecordId, setEditingRecordId] = useState(null);
 
@@ -27,232 +142,104 @@ function App() {
     amount: "",
   });
 
-  // ============================================================
-  // QUALITY HELPERS
-  // ============================================================
-
-  const getQualityFromConfidence = (confidence) => {
-    const value = Number(confidence);
-
-    if (!Number.isFinite(value)) {
-      return "LOW";
-    }
-
-    if (value >= 85) {
-      return "HIGH";
-    }
-
-    if (value >= 65) {
-      return "MEDIUM";
-    }
-
-    return "LOW";
-  };
-
-  const getQualityClass = (quality, confidence = null) => {
-    let normalized = String(quality || "").toUpperCase();
-
-    if (
-      !["HIGH", "MEDIUM", "LOW"].includes(normalized) &&
-      confidence !== null
-    ) {
-      normalized = getQualityFromConfidence(confidence);
-    }
-
-    if (normalized === "HIGH") {
-      return "quality-high";
-    }
-
-    if (normalized === "MEDIUM") {
-      return "quality-medium";
-    }
-
-    return "quality-low";
-  };
-
-  // ============================================================
-  // CONFIDENCE HELPERS
-  // ============================================================
-
-  const getConfidenceRecord = (confidenceData, index) => {
-    return confidenceData?.records?.[index] || null;
-  };
-
-  const getRecordConfidence = (
-    record,
-    confidenceRecord
-  ) => {
-    if (
-      record?.confidence !== undefined &&
-      record?.confidence !== null &&
-      Number(record.confidence) > 0
-    ) {
-      return Number(record.confidence);
-    }
-
-    if (
-      confidenceRecord?.confidence !== undefined &&
-      confidenceRecord?.confidence !== null
-    ) {
-      return Number(confidenceRecord.confidence);
-    }
-
-    return 0;
-  };
-
-  const getRecordQuality = (
-    record,
-    confidenceRecord
-  ) => {
-    const confidence = getRecordConfidence(
-      record,
-      confidenceRecord
-    );
-
-    const databaseQuality = String(
-      record?.quality || ""
-    ).toUpperCase();
-
-    if (
-      ["HIGH", "MEDIUM", "LOW"].includes(
-        databaseQuality
-      ) &&
-      confidence > 0
-    ) {
-      return databaseQuality;
-    }
-
-    const confidenceQuality = String(
-      confidenceRecord?.quality || ""
-    ).toUpperCase();
-
-    if (
-      ["HIGH", "MEDIUM", "LOW"].includes(
-        confidenceQuality
-      )
-    ) {
-      return confidenceQuality;
-    }
-
-    return getQualityFromConfidence(confidence);
-  };
-
-  const getRequiresReview = (
-    record,
-    confidenceRecord
-  ) => {
-    if (
-      record?.requires_review !== undefined &&
-      record?.requires_review !== null
-    ) {
-      return Boolean(record.requires_review);
-    }
-
-    if (
-      confidenceRecord?.requires_review !== undefined
-    ) {
-      return Boolean(
-        confidenceRecord.requires_review
-      );
-    }
-
-    const confidence = getRecordConfidence(
-      record,
-      confidenceRecord
-    );
-
-    return confidence < 85;
-  };
-
-  // ============================================================
-  // LOAD DOCUMENT HISTORY
-  // ============================================================
-
-  const loadDocuments = async () => {
-    try {
-      setHistoryLoading(true);
-      setError("");
-
-      const response = await axios.get(
-        `${API_URL}/api/v1/documents`
-      );
-
-      const data = response.data || [];
-
-      const normalizedDocuments = data.map(
-        (document) => {
-          const confidence = Number(
-            document.average_confidence
-          );
-
-          const quality =
-            document.quality &&
-            String(document.quality).toUpperCase() !==
-              "UNKNOWN"
-              ? document.quality
-              : getQualityFromConfidence(
-                  confidence
-                );
-
-          return {
-            ...document,
-            average_confidence:
-              Number.isFinite(confidence)
-                ? confidence
-                : 0,
-            quality,
-            records_review_required:
-              Number(
-                document.records_review_required
-              ) || 0,
-          };
-        }
-      );
-
-      setDocuments(normalizedDocuments);
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err?.response?.data?.detail ||
-          "Failed to load document history."
-      );
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
 
   useEffect(() => {
     loadDocuments();
+    loadReviewQueue();
   }, []);
 
-  // ============================================================
-  // FILE SELECTION
-  // ============================================================
 
-  const handleFileChange = (event) => {
-    const selectedFile =
-      event.target.files?.[0];
+  async function loadDocuments() {
+    try {
+      setHistoryLoading(true);
 
-    if (!selectedFile) {
-      return;
+      const response = await fetch(
+        `${API_URL}/api/v1/documents`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load document history.");
+      }
+
+      const data = await response.json();
+
+      const normalizedDocuments = Array.isArray(data.documents)
+        ? data.documents.map((document) => ({
+            ...document,
+            average_confidence: normalizeConfidence(
+              document.average_confidence
+            ),
+          }))
+        : [];
+
+      setDocuments(normalizedDocuments);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+
+  async function loadReviewQueue() {
+    try {
+      setReviewLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/api/v1/review/queue`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load human review queue.");
+      }
+
+      const data = await response.json();
+
+      const records = Array.isArray(data.records)
+        ? data.records.map(normalizeRecord)
+        : [];
+
+      setReviewQueue(records);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setReviewLoading(false);
+    }
+  }
+
+
+  async function loadDocumentDetails(documentId) {
+    const response = await fetch(
+      `${API_URL}/api/v1/documents/${documentId}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to load document details.");
     }
 
-    setFile(selectedFile);
-    setResult(null);
-    setSelectedDocument(null);
-    setError("");
-  };
+    const data = await response.json();
 
-  // ============================================================
-  // PROCESS DOCUMENT
-  // ============================================================
+    return normalizeDocument(data.document);
+  }
 
-  const processDocument = async () => {
+
+  async function viewDocument(documentId) {
+    try {
+      setError("");
+
+      const document = await loadDocumentDetails(documentId);
+
+      setSelectedDocument(document);
+      setActivePage("details");
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+
+  async function processDocument() {
     if (!file) {
-      setError(
-        "Please select a document first."
-      );
+      setError("Please select a document first.");
       return;
     }
 
@@ -265,133 +252,51 @@ function App() {
 
       formData.append("file", file);
 
-      const response = await axios.post(
+      const response = await fetch(
         `${API_URL}/api/v1/process`,
-        formData,
         {
-          headers: {
-            "Content-Type":
-              "multipart/form-data",
-          },
+          method: "POST",
+          body: formData,
         }
       );
 
-      const data = response.data || {};
+      const data = await response.json();
 
-      // Keep the backend confidence structure.
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Document processing failed."
+        );
+      }
+
       setResult(data);
 
       await loadDocuments();
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err?.response?.data?.detail ||
-          "Document processing failed."
-      );
+      await loadReviewQueue();
+    } catch (requestError) {
+      setError(requestError.message);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  // ============================================================
-  // VIEW DOCUMENT
-  // ============================================================
 
-  const viewDocument = async (
-    documentId
-  ) => {
-    try {
-      setHistoryLoading(true);
-      setError("");
-      setEditingRecordId(null);
-
-      const response = await axios.get(
-        `${API_URL}/api/v1/documents/${documentId}`
-      );
-
-      const data = response.data || {};
-
-      /*
-       * Backend returns:
-       *
-       * {
-       *   document: {...},
-       *   records: [...]
-       * }
-       */
-
-      const documentInfo =
-        data.document || data;
-
-      const records =
-        data.records ||
-        documentInfo.records ||
-        [];
-
-      const averageConfidence = Number(
-        documentInfo.average_confidence
-      );
-
-      const normalizedDocument = {
-        ...documentInfo,
-        records,
-        average_confidence:
-          Number.isFinite(
-            averageConfidence
-          )
-            ? averageConfidence
-            : 0,
-        quality:
-          documentInfo.quality &&
-          String(
-            documentInfo.quality
-          ).toUpperCase() !== "UNKNOWN"
-            ? documentInfo.quality
-            : getQualityFromConfidence(
-                averageConfidence
-              ),
-      };
-
-      setSelectedDocument(
-        normalizedDocument
-      );
-
-      setActivePage("details");
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err?.response?.data?.detail ||
-          "Failed to load document."
-      );
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  // ============================================================
-  // START EDIT
-  // ============================================================
-
-  const startEditRecord = (
-    record
-  ) => {
+  function startEditing(record) {
     setEditingRecordId(record.id);
 
     setEditForm({
-      customer: record.customer ?? "",
-      date: record.date ?? "",
-      product: record.product ?? "",
-      amount: record.amount ?? "",
+      customer: record.customer || "",
+      date: record.date || "",
+      product: record.product || "",
+      amount:
+        record.amount === null ||
+        record.amount === undefined
+          ? ""
+          : String(record.amount),
     });
-  };
+  }
 
-  // ============================================================
-  // CANCEL EDIT
-  // ============================================================
 
-  const cancelEditRecord = () => {
+  function cancelEditing() {
     setEditingRecordId(null);
 
     setEditForm({
@@ -400,151 +305,136 @@ function App() {
       product: "",
       amount: "",
     });
-  };
+  }
 
-  // ============================================================
-  // EDIT CHANGE
-  // ============================================================
 
-  const handleEditChange = (
-    event
-  ) => {
-    const {
-      name,
-      value,
-    } = event.target;
-
-    setEditForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
-
-  // ============================================================
-  // UPDATE RECORD
-  // ============================================================
-
-  const updateRecord = async (
-    recordId
-  ) => {
-    if (!selectedDocument?.document_id) {
-      setError(
-        "Document information is missing."
-      );
+  async function saveRecord(recordId) {
+    if (!selectedDocument) {
       return;
     }
 
     try {
-      setUpdateLoading(true);
+      setUpdateLoading(recordId);
       setError("");
 
-      const payload = {
-        customer: editForm.customer,
-        date: editForm.date,
-        product: editForm.product,
-        amount:
-          editForm.amount === ""
-            ? null
-            : Number(editForm.amount),
-      };
-
-      await axios.put(
+      const response = await fetch(
         `${API_URL}/api/v1/documents/${selectedDocument.document_id}/records/${recordId}`,
-        payload
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            customer: editForm.customer.trim(),
+            date: editForm.date.trim(),
+            product: editForm.product.trim(),
+            amount: editForm.amount.trim(),
+          }),
+        }
       );
 
-      await viewDocument(
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Failed to update record."
+        );
+      }
+
+      const updatedDocument = await loadDocumentDetails(
         selectedDocument.document_id
       );
 
+      setSelectedDocument(updatedDocument);
+
+      await loadDocuments();
+      await loadReviewQueue();
+
+      cancelEditing();
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setUpdateLoading(null);
+    }
+  }
+
+
+  async function updateReviewStatus(recordId, reviewStatus) {
+    try {
+      const loadingKey = `${recordId}-${reviewStatus}`;
+
+      setReviewActionLoading(loadingKey);
+      setError("");
+
+      const response = await fetch(
+        `${API_URL}/api/v1/records/${recordId}/review-status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            review_status: reviewStatus,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            "Failed to update review status."
+        );
+      }
+
+      await loadReviewQueue();
       await loadDocuments();
 
-      setEditingRecordId(null);
-    } catch (err) {
-      console.error(err);
+      if (selectedDocument) {
+        const refreshedDocument =
+          await loadDocumentDetails(
+            selectedDocument.document_id
+          );
 
-      setError(
-        err?.response?.data?.detail ||
-          "Failed to update record."
-      );
+        setSelectedDocument(refreshedDocument);
+      }
+    } catch (requestError) {
+      setError(requestError.message);
     } finally {
-      setUpdateLoading(false);
+      setReviewActionLoading(null);
     }
-  };
+  }
 
-  // ============================================================
-  // CSV EXPORT
-  // ============================================================
 
-  const exportCSV = (
-    documentData
-  ) => {
-    if (
-      !documentData?.records?.length
-    ) {
-      setError(
-        "No records available for CSV export."
-      );
+  function exportCSV(document) {
+    if (!document?.records?.length) {
       return;
     }
 
-    const confidenceData =
-      documentData.confidence;
-
     const headers = [
-      "ID",
       "Customer",
       "Date",
       "Product",
       "Amount",
       "Confidence",
       "Quality",
+      "Requires Review",
       "Review Status",
     ];
 
-    const rows =
-      documentData.records.map(
-        (record, index) => {
-          const confidenceRecord =
-            getConfidenceRecord(
-              confidenceData,
-              index
-            );
-
-          const confidence =
-            getRecordConfidence(
-              record,
-              confidenceRecord
-            );
-
-          const quality =
-            getRecordQuality(
-              record,
-              confidenceRecord
-            );
-
-          const requiresReview =
-            getRequiresReview(
-              record,
-              confidenceRecord
-            );
-
-          return [
-            record.id ?? index + 1,
-            record.customer ?? "",
-            record.date ?? "",
-            record.product ?? "",
-            record.amount ?? "",
-            confidence
-              ? confidence.toFixed(2)
-              : "",
-            quality,
-            requiresReview
-              ? "NEEDS REVIEW"
-              : "NO REVIEW NEEDED",
-          ];
-        }
-      );
+    const rows = document.records.map((record) => [
+      record.customer ?? "",
+      record.date ?? "",
+      record.product ?? "",
+      record.amount ?? "",
+      normalizeConfidence(record.confidence).toFixed(1),
+      record.quality ?? "",
+      requiresHumanReview(record)
+        ? "YES"
+        : "NO",
+      normalizeReviewStatus(record.review_status),
+    ]);
 
     const csvContent = [
       headers,
@@ -553,13 +443,8 @@ function App() {
       .map((row) =>
         row
           .map((value) => {
-            const stringValue =
-              String(value ?? "");
-
-            return `"${stringValue.replace(
-              /"/g,
-              '""'
-            )}"`;
+            const text = String(value);
+            return `"${text.replace(/"/g, '""')}"`;
           })
           .join(",")
       )
@@ -568,24 +453,18 @@ function App() {
     const blob = new Blob(
       [csvContent],
       {
-        type:
-          "text/csv;charset=utf-8;",
+        type: "text/csv;charset=utf-8;",
       }
     );
 
-    const url =
-      URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
 
-    const link =
-      document.createElement("a");
+    const link = document.createElement("a");
 
     link.href = url;
 
-    link.download = `${
-      documentData.filename ||
-      documentData.document_id ||
-      "intellicapture"
-    }_extracted.csv`;
+    link.download =
+      `${document.filename || document.document_id}_extracted.csv`;
 
     document.body.appendChild(link);
 
@@ -594,126 +473,103 @@ function App() {
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
-  };
+  }
 
-  // ============================================================
-  // NAVIGATION
-  // ============================================================
 
-  const openUploadPage = () => {
-    setActivePage("upload");
-    setError("");
-  };
+  function renderReviewStatus(record) {
+    const status = normalizeReviewStatus(
+      record?.review_status
+    );
 
-  const openHistoryPage = async () => {
-    setActivePage("history");
-    setError("");
+    return (
+      <div>
+        <span
+          className={`review-badge ${getReviewClass(status)}`}
+        >
+          {getReviewLabel(status)}
+        </span>
 
-    await loadDocuments();
-  };
+        {requiresHumanReview(record) && (
+          <div className="review-required-text">
+            Human review required
+          </div>
+        )}
+      </div>
+    );
+  }
 
-  // ============================================================
-  // UPLOAD PAGE
-  // ============================================================
 
-  const renderUploadPage = () => {
-    const confidenceData =
-      result?.confidence;
-
-    const summary =
-      confidenceData?.summary || {};
-
-    const averageConfidence =
-      Number(
-        summary.average_confidence
-      );
-
-    const documentQuality =
-      summary.quality &&
-      String(summary.quality)
-        .toUpperCase() !== "UNKNOWN"
-        ? summary.quality
-        : getQualityFromConfidence(
-            averageConfidence
-          );
-
-    const reviewRequired =
-      Number(
-        summary.records_review_required
-      ) || 0;
+  function renderUploadPage() {
+    const records = result?.records || [];
 
     return (
       <div className="page">
-
         <div className="hero-section">
           <div className="hero-badge">
             AI DOCUMENT INTELLIGENCE
           </div>
 
           <h1>
-            Turn Physical Records
+            Turn physical records
             <br />
-            Into{" "}
-            <span>Digital Assets.</span>
+            into <span>digital assets.</span>
           </h1>
 
           <p>
-            Upload a physical document and let
-            IntelliCapture-AI extract structured,
-            validated and confidence-scored data.
+            Upload a scanned register, form, or document.
+            IntelliCapture-AI extracts structured data,
+            evaluates confidence, and routes uncertain
+            records for human review.
           </p>
         </div>
 
         <div className="upload-card">
-
           <div className="upload-icon">
-            📄
+            ↑
           </div>
 
-          <h2>
-            Upload Document
-          </h2>
-
-          <p>
-            Upload a register, form, bill, or
-            document image for AI-powered
-            extraction.
-          </p>
-
           <div className="upload-area">
-
             <input
               type="file"
               accept="image/*,.pdf"
-              onChange={
-                handleFileChange
-              }
+              onChange={(event) => {
+                const selectedFile =
+                  event.target.files?.[0] || null;
+
+                setFile(selectedFile);
+                setError("");
+              }}
             />
 
-            {file && (
+            {file ? (
               <div className="selected-file">
-                <strong>
-                  Selected:
-                </strong>{" "}
-                {file.name}
+                <strong>{file.name}</strong>
+                <span>
+                  {(file.size / 1024).toFixed(1)} KB
+                </span>
               </div>
+            ) : (
+              <>
+                <strong>
+                  Drop your document here
+                </strong>
+
+                <span>
+                  or click to browse
+                </span>
+              </>
             )}
           </div>
 
           <button
             className="primary-button process-button"
-            onClick={
-              processDocument
-            }
-            disabled={
-              !file || loading
-            }
+            onClick={processDocument}
+            disabled={loading || !file}
           >
             {loading
-              ? "Processing Document..."
+              ? "Processing..."
               : "Process Document"}
           </button>
-
         </div>
 
         {error && (
@@ -724,114 +580,68 @@ function App() {
 
         {result && (
           <div className="result-section">
-
             <div className="section-header">
               <div>
                 <div className="section-label">
-                  PROCESSING RESULT
+                  EXTRACTION COMPLETE
                 </div>
 
                 <h2>
-                  Extracted Information
+                  {result.filename ||
+                    file?.name ||
+                    "Processed Document"}
                 </h2>
-
-                <p>
-                  Structured data and confidence
-                  analysis generated by the
-                  IntelliCapture pipeline.
-                </p>
               </div>
-
-              <button
-                className="secondary-button"
-                onClick={() =>
-                  exportCSV(result)
-                }
-              >
-                Export CSV
-              </button>
             </div>
 
             <div className="summary-grid">
-
               <div className="summary-card">
-                <span>
-                  DOCUMENT ID
-                </span>
-
+                <span>Records Extracted</span>
                 <strong>
-                  {result.document_id ||
-                    "N/A"}
+                  {result.records?.length || 0}
                 </strong>
               </div>
 
               <div className="summary-card">
-                <span>
-                  RECORDS EXTRACTED
-                </span>
-
+                <span>Average Confidence</span>
                 <strong>
-                  {result.records_extracted ??
-                    result.records?.length ??
-                    0}
+                  {normalizeConfidence(
+                    result.average_confidence
+                  ).toFixed(1)}
+                  %
                 </strong>
               </div>
 
               <div className="summary-card">
-                <span>
-                  AVERAGE CONFIDENCE
-                </span>
-
-                <strong>
-                  {Number.isFinite(
-                    averageConfidence
-                  )
-                    ? `${averageConfidence.toFixed(
-                        2
-                      )}%`
-                    : "0.00%"}
-                </strong>
-              </div>
-
-              <div className="summary-card">
-                <span>
-                  DOCUMENT QUALITY
-                </span>
-
-                <span
-                  className={`quality-badge ${getQualityClass(
-                    documentQuality,
-                    averageConfidence
-                  )}`}
+                <span>Quality</span>
+                <strong
+                  className={getQualityClass(
+                    result.quality
+                  )}
                 >
-                  {documentQuality}
-                </span>
+                  {result.quality || "UNKNOWN"}
+                </strong>
               </div>
 
+              <div className="summary-card">
+                <span>Review Required</span>
+                <strong>
+                  {result.records?.filter(
+                    requiresHumanReview
+                  ).length || 0}
+                </strong>
+              </div>
             </div>
 
             <div className="table-card">
-
               <div className="section-heading">
-                <div>
-                  <h2>
-                    Extracted Records
-                  </h2>
-
-                  <p>
-                    Review extracted values and
-                    confidence status.
-                  </p>
-                </div>
+                Extracted Records
               </div>
 
               <div className="table-wrapper">
-
                 <table>
-
                   <thead>
                     <tr>
-                      <th>ID</th>
                       <th>Customer</th>
                       <th>Date</th>
                       <th>Product</th>
@@ -843,329 +653,74 @@ function App() {
                   </thead>
 
                   <tbody>
+                    {records.map((record, index) => (
+                      <tr key={record.id || index}>
+                        <td>
+                          {record.customer}
+                        </td>
 
-                    {(result.records || []).map(
-                      (
-                        record,
-                        index
-                      ) => {
+                        <td>
+                          {record.date}
+                        </td>
 
-                        const confidenceRecord =
-                          getConfidenceRecord(
-                            confidenceData,
-                            index
-                          );
+                        <td>
+                          {record.product}
+                        </td>
 
-                        const confidence =
-                          getRecordConfidence(
-                            record,
-                            confidenceRecord
-                          );
+                        <td>
+                          {record.amount}
+                        </td>
 
-                        const quality =
-                          getRecordQuality(
-                            record,
-                            confidenceRecord
-                          );
+                        <td>
+                          {normalizeConfidence(
+                            record.confidence
+                          ).toFixed(1)}
+                          %
+                        </td>
 
-                        const requiresReview =
-                          getRequiresReview(
-                            record,
-                            confidenceRecord
-                          );
-
-                        return (
-                          <tr
-                            key={
-                              record.id ||
-                              index
-                            }
-                          >
-
-                            <td>
-                              {record.id ??
-                                index + 1}
-                            </td>
-
-                            <td>
-                              {record.customer ??
-                                "-"}
-                            </td>
-
-                            <td>
-                              {record.date ??
-                                "-"}
-                            </td>
-
-                            <td>
-                              {record.product ??
-                                "-"}
-                            </td>
-
-                            <td>
-                              ₹{" "}
-                              {record.amount ??
-                                "-"}
-                            </td>
-
-                            <td>
-                              {confidence.toFixed(
-                                2
-                              )}
-                              %
-                            </td>
-
-                            <td>
-                              <span
-                                className={`quality-badge ${getQualityClass(
-                                  quality,
-                                  confidence
-                                )}`}
-                              >
-                                {quality}
-                              </span>
-                            </td>
-
-                            <td>
-                              <span
-                                className={`review-badge ${
-                                  requiresReview
-                                    ? "review-needed"
-                                    : "review-clear"
-                                }`}
-                              >
-                                {requiresReview
-                                  ? "NEEDS REVIEW"
-                                  : "NO REVIEW NEEDED"}
-                              </span>
-                            </td>
-
-                          </tr>
-                        );
-                      }
-                    )}
-
-                  </tbody>
-
-                </table>
-
-              </div>
-
-            </div>
-
-            <div className="confidence-card">
-
-              <div className="section-heading">
-                <div>
-                  <h2>
-                    Confidence Analysis
-                  </h2>
-
-                  <p>
-                    Field-level confidence generated
-                    by the extraction engine.
-                  </p>
-                </div>
-              </div>
-
-              <div className="confidence-overview">
-
-                <div className="confidence-main">
-
-                  <span>
-                    OVERALL CONFIDENCE
-                  </span>
-
-                  <strong>
-                    {Number.isFinite(
-                      averageConfidence
-                    )
-                      ? `${averageConfidence.toFixed(
-                          2
-                        )}%`
-                      : "0.00%"}
-                  </strong>
-
-                  <div className="confidence-bar">
-                    <div
-                      className="confidence-fill"
-                      style={{
-                        width: `${Math.min(
-                          Math.max(
-                            averageConfidence,
-                            0
-                          ),
-                          100
-                        )}%`,
-                      }}
-                    />
-                  </div>
-
-                </div>
-
-                <div className="confidence-stat">
-                  <span>
-                    QUALITY
-                  </span>
-
-                  <span
-                    className={`quality-badge ${getQualityClass(
-                      documentQuality,
-                      averageConfidence
-                    )}`}
-                  >
-                    {documentQuality}
-                  </span>
-                </div>
-
-                <div className="confidence-stat">
-                  <span>
-                    REVIEW REQUIRED
-                  </span>
-
-                  <strong>
-                    {reviewRequired}
-                  </strong>
-                </div>
-
-              </div>
-
-              <div className="confidence-grid">
-
-                {(
-                  confidenceData?.records ||
-                  []
-                ).map(
-                  (
-                    confidenceRecord,
-                    index
-                  ) => {
-
-                    const sourceRecord =
-                      result.records?.[
-                        index
-                      ];
-
-                    return (
-                      <div
-                        className="confidence-record"
-                        key={index}
-                      >
-
-                        <div className="confidence-header">
-
-                          <strong>
-                            {sourceRecord?.customer ||
-                              `Record ${
-                                index + 1
-                              }`}
-                          </strong>
-
+                        <td>
                           <span
                             className={`quality-badge ${getQualityClass(
-                              confidenceRecord.quality,
-                              confidenceRecord.confidence
+                              record.quality
                             )}`}
                           >
-                            {Number(
-                              confidenceRecord.confidence ||
-                                0
-                            ).toFixed(2)}
-                            %
+                            {record.quality ||
+                              "UNKNOWN"}
                           </span>
+                        </td>
 
-                        </div>
-
-                        <div className="field-list">
-
-                          {Object.entries(
-                            confidenceRecord.fields ||
-                              {}
-                          ).map(
-                            (
-                              [
-                                field,
-                                data,
-                              ]
-                            ) => (
-                              <div
-                                className="field-row"
-                                key={field}
-                              >
-                                <span>
-                                  {field}
-                                </span>
-
-                                <span>
-                                  {Number(
-                                    data?.confidence ||
-                                      0
-                                  ).toFixed(
-                                    2
-                                  )}
-                                  %
-                                </span>
-                              </div>
-                            )
-                          )}
-
-                        </div>
-
-                      </div>
-                    );
-                  }
-                )}
-
+                        <td>
+                          {renderReviewStatus(record)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
             </div>
-
           </div>
         )}
-
       </div>
     );
-  };
+  }
 
-  // ============================================================
-  // HISTORY PAGE
-  // ============================================================
 
-  const renderHistoryPage = () => {
+  function renderHistoryPage() {
     return (
       <div className="page">
-
         <div className="page-header">
-
           <div>
             <div className="section-label">
-              ARCHIVE
+              DOCUMENT LIBRARY
             </div>
 
-            <h1>
-              Document History
-            </h1>
+            <h1>Document History</h1>
 
             <p>
-              Previously processed documents
-              and extraction results.
+              View previously processed documents
+              and inspect their extracted records.
             </p>
           </div>
-
-          <button
-            className="secondary-button"
-            onClick={
-              loadDocuments
-            }
-            disabled={
-              historyLoading
-            }
-          >
-            {historyLoading
-              ? "Refreshing..."
-              : "Refresh"}
-          </button>
-
         </div>
 
         {error && (
@@ -1174,232 +729,120 @@ function App() {
           </div>
         )}
 
-        {historyLoading &&
-        documents.length === 0 ? (
+        {historyLoading ? (
           <div className="loading-card">
             Loading document history...
           </div>
         ) : documents.length === 0 ? (
           <div className="empty-card">
             <div className="empty-icon">
-              📂
+              ◫
             </div>
 
-            <h3>
-              No documents yet
-            </h3>
+            <h3>No documents yet</h3>
 
             <p>
-              Process a document to see it
+              Process your first document to see it
               appear here.
             </p>
           </div>
         ) : (
           <div className="history-grid">
-
-            {documents.map(
-              (document) => {
-
-                const confidence =
-                  Number(
-                    document.average_confidence
-                  ) || 0;
-
-                const quality =
-                  document.quality ||
-                  getQualityFromConfidence(
-                    confidence
-                  );
-
-                return (
-                  <div
-                    className="history-card"
-                    key={
-                      document.document_id
-                    }
-                  >
-
-                    <div className="history-card-header">
-
-                      <div className="document-icon">
-                        📄
-                      </div>
-
-                      <span
-                        className={`quality-badge ${getQualityClass(
-                          quality,
-                          confidence
-                        )}`}
-                      >
-                        {quality}
-                      </span>
-
-                    </div>
-
-                    <h3>
-                      {document.filename ||
-                        document.document_id}
-                    </h3>
-
-                    <div className="document-id">
-                      ID:{" "}
-                      {
-                        document.document_id
-                      }
-                    </div>
-
-                    <div className="history-stats">
-
-                      <div>
-                        <span>
-                          Records
-                        </span>
-
-                        <strong>
-                          {document.records_extracted ??
-                            0}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          Confidence
-                        </span>
-
-                        <strong>
-                          {confidence.toFixed(
-                            2
-                          )}
-                          %
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          Review
-                        </span>
-
-                        <strong>
-                          {document.records_review_required ??
-                            0}
-                        </strong>
-                      </div>
-
-                    </div>
-
-                    <button
-                      className="view-button"
-                      onClick={() =>
-                        viewDocument(
-                          document.document_id
-                        )
-                      }
-                    >
-                      View Document →
-                    </button>
-
+            {documents.map((document) => (
+              <div
+                className="history-card"
+                key={document.document_id}
+              >
+                <div className="history-card-header">
+                  <div className="document-icon">
+                    DOC
                   </div>
-                );
-              }
-            )}
 
+                  <div>
+                    <div className="document-id">
+                      {document.document_id}
+                    </div>
+
+                    <strong>
+                      {document.filename}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="history-stats">
+                  <div>
+                    <span>Records</span>
+                    <strong>
+                      {document.records_extracted || 0}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Confidence</span>
+                    <strong>
+                      {normalizeConfidence(
+                        document.average_confidence
+                      ).toFixed(1)}
+                      %
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Review</span>
+                    <strong>
+                      {document.records_review_required ||
+                        0}
+                    </strong>
+                  </div>
+                </div>
+
+                <button
+                  className="view-button"
+                  onClick={() =>
+                    viewDocument(
+                      document.document_id
+                    )
+                  }
+                >
+                  View Document →
+                </button>
+              </div>
+            ))}
           </div>
         )}
-
       </div>
     );
-  };
+  }
 
-  // ============================================================
-  // DETAILS PAGE
-  // ============================================================
 
-  const renderDetailsPage = () => {
-    if (!selectedDocument) {
-      return (
-        <div className="page">
-
-          <div className="empty-card">
-
-            <h2>
-              No document selected
-            </h2>
-
-            <button
-              className="primary-button"
-              onClick={
-                openHistoryPage
-              }
-            >
-              Back to History
-            </button>
-
-          </div>
-
-        </div>
-      );
-    }
-
-    const documentConfidence =
-      Number(
-        selectedDocument.average_confidence
-      ) || 0;
-
-    const documentQuality =
-      selectedDocument.quality ||
-      getQualityFromConfidence(
-        documentConfidence
-      );
-
+  function renderReviewPage() {
     return (
       <div className="page">
-
         <div className="page-header">
-
           <div>
-
             <div className="section-label">
-              DOCUMENT DETAILS
+              HUMAN-IN-THE-LOOP
             </div>
 
-            <h1>
-              {selectedDocument.filename ||
-                selectedDocument.document_id}
-            </h1>
+            <h1>Human Review</h1>
 
             <p>
-              ID:{" "}
-              {
-                selectedDocument.document_id
-              }
+              Review records flagged by IntelliCapture-AI
+              before they become trusted digital data.
             </p>
-
           </div>
 
           <div className="header-actions">
-
             <button
               className="secondary-button"
-              onClick={() =>
-                exportCSV(
-                  selectedDocument
-                )
-              }
+              onClick={loadReviewQueue}
+              disabled={reviewLoading}
             >
-              Export CSV
+              {reviewLoading
+                ? "Refreshing..."
+                : "Refresh Queue"}
             </button>
-
-            <button
-              className="secondary-button"
-              onClick={
-                openHistoryPage
-              }
-            >
-              ← Back
-            </button>
-
           </div>
-
         </div>
 
         {error && (
@@ -1409,86 +852,324 @@ function App() {
         )}
 
         <div className="summary-grid">
+          <div className="summary-card">
+            <span>Pending Review</span>
+            <strong>
+              {reviewQueue.length}
+            </strong>
+          </div>
 
           <div className="summary-card">
-            <span>
-              DOCUMENT ID
-            </span>
-
+            <span>Lowest Confidence</span>
             <strong>
-              {
-                selectedDocument.document_id
+              {reviewQueue.length
+                ? `${normalizeConfidence(
+                    reviewQueue[0].confidence
+                  ).toFixed(1)}%`
+                : "—"}
+            </strong>
+          </div>
+
+          <div className="summary-card">
+            <span>Workflow</span>
+            <strong>
+              HUMAN
+            </strong>
+          </div>
+
+          <div className="summary-card">
+            <span>Status</span>
+            <strong
+              className={
+                reviewQueue.length
+                  ? "quality-medium"
+                  : "quality-high"
               }
-            </strong>
-          </div>
-
-          <div className="summary-card">
-            <span>
-              RECORDS EXTRACTED
-            </span>
-
-            <strong>
-              {selectedDocument.records?.length ??
-                selectedDocument.records_extracted ??
-                0}
-            </strong>
-          </div>
-
-          <div className="summary-card">
-            <span>
-              AVERAGE CONFIDENCE
-            </span>
-
-            <strong>
-              {documentConfidence.toFixed(
-                2
-              )}
-              %
-            </strong>
-          </div>
-
-          <div className="summary-card">
-            <span>
-              DOCUMENT QUALITY
-            </span>
-
-            <span
-              className={`quality-badge ${getQualityClass(
-                documentQuality,
-                documentConfidence
-              )}`}
             >
-              {documentQuality}
-            </span>
+              {reviewQueue.length
+                ? "ACTION NEEDED"
+                : "CLEAR"}
+            </strong>
+          </div>
+        </div>
+
+        {reviewLoading ? (
+          <div className="loading-card">
+            Loading review queue...
+          </div>
+        ) : reviewQueue.length === 0 ? (
+          <div className="empty-card">
+            <div className="empty-icon">
+              ✓
+            </div>
+
+            <h3>
+              Review queue is clear
+            </h3>
+
+            <p>
+              There are currently no extracted
+              records waiting for human review.
+            </p>
+          </div>
+        ) : (
+          <div className="review-queue">
+            {reviewQueue.map((record) => {
+              const approveKey =
+                `${record.id}-${REVIEW_APPROVED}`;
+
+              const rejectKey =
+                `${record.id}-${REVIEW_REJECTED}`;
+
+              return (
+                <div
+                  className="review-queue-card"
+                  key={record.id}
+                >
+                  <div className="review-queue-header">
+                    <div>
+                      <div className="section-label">
+                        RECORD #{record.id}
+                      </div>
+
+                      <h3>
+                        {record.customer ||
+                          "Unknown Customer"}
+                      </h3>
+
+                      <span className="review-document-id">
+                        {record.document_id}
+                      </span>
+                    </div>
+
+                    <div className="review-confidence">
+                      <span>Confidence</span>
+
+                      <strong>
+                        {normalizeConfidence(
+                          record.confidence
+                        ).toFixed(1)}
+                        %
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="review-record-grid">
+                    <div>
+                      <span>Customer</span>
+                      <strong>
+                        {record.customer || "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Date</span>
+                      <strong>
+                        {record.date || "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Product</span>
+                      <strong>
+                        {record.product || "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Amount</span>
+                      <strong>
+                        {record.amount || "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Extraction Quality</span>
+                      <strong
+                        className={getQualityClass(
+                          record.quality
+                        )}
+                      >
+                        {record.quality || "UNKNOWN"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Review Status</span>
+                      {renderReviewStatus(record)}
+                    </div>
+                  </div>
+
+                  <div className="review-actions">
+                    <button
+                      className="view-button"
+                      onClick={() =>
+                        viewDocument(
+                          record.document_id
+                        )
+                      }
+                    >
+                      Open Document
+                    </button>
+
+                    <button
+                      className="review-reject-button"
+                      onClick={() =>
+                        updateReviewStatus(
+                          record.id,
+                          REVIEW_REJECTED
+                        )
+                      }
+                      disabled={
+                        reviewActionLoading ===
+                        rejectKey
+                      }
+                    >
+                      {reviewActionLoading ===
+                      rejectKey
+                        ? "Rejecting..."
+                        : "Reject"}
+                    </button>
+
+                    <button
+                      className="review-approve-button"
+                      onClick={() =>
+                        updateReviewStatus(
+                          record.id,
+                          REVIEW_APPROVED
+                        )
+                      }
+                      disabled={
+                        reviewActionLoading ===
+                        approveKey
+                      }
+                    >
+                      {reviewActionLoading ===
+                      approveKey
+                        ? "Approving..."
+                        : "Approve"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+
+  function renderDetailsPage() {
+    if (!selectedDocument) {
+      return (
+        <div className="page">
+          <div className="empty-card">
+            <h3>
+              No document selected
+            </h3>
+
+            <p>
+              Select a document from history.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    const records =
+      selectedDocument.records || [];
+
+    const averageConfidence =
+      normalizeConfidence(
+        selectedDocument.average_confidence
+      );
+
+    return (
+      <div className="page">
+        <div className="page-header">
+          <div>
+            <div className="section-label">
+              DOCUMENT DETAILS
+            </div>
+
+            <h1>
+              {selectedDocument.filename}
+            </h1>
+
+            <p>
+              {selectedDocument.document_id}
+            </p>
           </div>
 
+          <div className="header-actions">
+            <button
+              className="secondary-button"
+              onClick={() =>
+                exportCSV(selectedDocument)
+              }
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+
+        <div className="summary-grid">
+          <div className="summary-card">
+            <span>Records</span>
+
+            <strong>
+              {records.length}
+            </strong>
+          </div>
+
+          <div className="summary-card">
+            <span>Average Confidence</span>
+
+            <strong>
+              {averageConfidence.toFixed(1)}%
+            </strong>
+          </div>
+
+          <div className="summary-card">
+            <span>Quality</span>
+
+            <strong
+              className={getQualityClass(
+                selectedDocument.quality
+              )}
+            >
+              {selectedDocument.quality ||
+                "UNKNOWN"}
+            </strong>
+          </div>
+
+          <div className="summary-card">
+            <span>Needs Review</span>
+
+            <strong>
+              {records.filter(
+                requiresHumanReview
+              ).length}
+            </strong>
+          </div>
         </div>
 
         <div className="table-card">
-
           <div className="section-heading">
-
-            <div>
-              <h2>
-                Extracted Records
-              </h2>
-
-              <p>
-                Review, correct and verify
-                extracted information.
-              </p>
-            </div>
-
+            Extracted Records
           </div>
 
           <div className="table-wrapper">
-
             <table>
-
               <thead>
-
                 <tr>
-                  <th>ID</th>
                   <th>Customer</th>
                   <th>Date</th>
                   <th>Product</th>
@@ -1496,425 +1177,420 @@ function App() {
                   <th>Confidence</th>
                   <th>Quality</th>
                   <th>Review Status</th>
-                  <th>Action</th>
+                  <th>Actions</th>
                 </tr>
-
               </thead>
 
               <tbody>
+                {records.map((record) => {
+                  const isEditing =
+                    editingRecordId === record.id;
 
-                {(selectedDocument.records ||
-                  []
-                ).map(
-                  (
-                    record,
-                    index
-                  ) => {
+                  const approveKey =
+                    `${record.id}-${REVIEW_APPROVED}`;
 
-                    const confidence =
-                      Number(
-                        record.confidence
-                      ) || 0;
+                  const rejectKey =
+                    `${record.id}-${REVIEW_REJECTED}`;
 
-                    const quality =
-                      record.quality &&
-                      String(
-                        record.quality
-                      ).toUpperCase() !==
-                        "UNKNOWN"
-                        ? record.quality
-                        : getQualityFromConfidence(
-                            confidence
-                          );
+                  return (
+                    <tr key={record.id}>
+                      <td>
+                        {isEditing ? (
+                          <input
+                            value={editForm.customer}
+                            onChange={(event) =>
+                              setEditForm({
+                                ...editForm,
+                                customer:
+                                  event.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          record.customer
+                        )}
+                      </td>
 
-                    const requiresReview =
-                      getRequiresReview(
-                        record,
-                        null
-                      );
+                      <td>
+                        {isEditing ? (
+                          <input
+                            value={editForm.date}
+                            onChange={(event) =>
+                              setEditForm({
+                                ...editForm,
+                                date:
+                                  event.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          record.date
+                        )}
+                      </td>
 
-                    const isEditing =
-                      editingRecordId ===
-                      record.id;
+                      <td>
+                        {isEditing ? (
+                          <input
+                            value={editForm.product}
+                            onChange={(event) =>
+                              setEditForm({
+                                ...editForm,
+                                product:
+                                  event.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          record.product
+                        )}
+                      </td>
 
-                    return (
-                      <tr
-                        key={
-                          record.id ||
-                          index
-                        }
-                      >
+                      <td>
+                        {isEditing ? (
+                          <input
+                            value={editForm.amount}
+                            onChange={(event) =>
+                              setEditForm({
+                                ...editForm,
+                                amount:
+                                  event.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          record.amount
+                        )}
+                      </td>
 
-                        <td>
-                          {record.id ??
-                            index + 1}
-                        </td>
+                      <td>
+                        {normalizeConfidence(
+                          record.confidence
+                        ).toFixed(1)}
+                        %
+                      </td>
 
-                        <td>
+                      <td>
+                        <span
+                          className={`quality-badge ${getQualityClass(
+                            record.quality
+                          )}`}
+                        >
+                          {record.quality ||
+                            "UNKNOWN"}
+                        </span>
+                      </td>
 
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              name="customer"
-                              value={
-                                editForm.customer
-                              }
-                              onChange={
-                                handleEditChange
-                              }
-                            />
-                          ) : (
-                            record.customer ??
-                            "-"
-                          )}
+                      <td>
+                        {renderReviewStatus(record)}
+                      </td>
 
-                        </td>
-
-                        <td>
-
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              name="date"
-                              value={
-                                editForm.date
-                              }
-                              onChange={
-                                handleEditChange
-                              }
-                            />
-                          ) : (
-                            record.date ??
-                            "-"
-                          )}
-
-                        </td>
-
-                        <td>
-
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              name="product"
-                              value={
-                                editForm.product
-                              }
-                              onChange={
-                                handleEditChange
-                              }
-                            />
-                          ) : (
-                            record.product ??
-                            "-"
-                          )}
-
-                        </td>
-
-                        <td>
-
-                          {isEditing ? (
-                            <input
-                              type="number"
-                              name="amount"
-                              value={
-                                editForm.amount
-                              }
-                              onChange={
-                                handleEditChange
-                              }
-                            />
-                          ) : (
-                            <>
-                              ₹{" "}
-                              {record.amount ??
-                                "-"}
-                            </>
-                          )}
-
-                        </td>
-
-                        <td>
-                          {confidence.toFixed(
-                            2
-                          )}
-                          %
-                        </td>
-
-                        <td>
-
-                          <span
-                            className={`quality-badge ${getQualityClass(
-                              quality,
-                              confidence
-                            )}`}
-                          >
-                            {quality}
-                          </span>
-
-                        </td>
-
-                        <td>
-
-                          <span
-                            className={`review-badge ${
-                              requiresReview
-                                ? "review-needed"
-                                : "review-clear"
-                            }`}
-                          >
-                            {requiresReview
-                              ? "NEEDS REVIEW"
-                              : "NO REVIEW NEEDED"}
-                          </span>
-
-                        </td>
-
-                        <td>
-
-                          {isEditing ? (
-                            <div className="action-buttons">
-
-                              <button
-                                className="primary-button small-button"
-                                onClick={() =>
-                                  updateRecord(
-                                    record.id
-                                  )
-                                }
-                                disabled={
-                                  updateLoading
-                                }
-                              >
-                                {updateLoading
-                                  ? "Saving..."
-                                  : "Save"}
-                              </button>
-
-                              <button
-                                className="secondary-button small-button"
-                                onClick={
-                                  cancelEditRecord
-                                }
-                                disabled={
-                                  updateLoading
-                                }
-                              >
-                                Cancel
-                              </button>
-
-                            </div>
-                          ) : (
+                      <td>
+                        {isEditing ? (
+                          <div className="action-buttons">
                             <button
-                              className="secondary-button small-button"
+                              className="small-button"
                               onClick={() =>
-                                startEditRecord(
-                                  record
-                                )
+                                saveRecord(record.id)
+                              }
+                              disabled={
+                                updateLoading ===
+                                record.id
+                              }
+                            >
+                              {updateLoading ===
+                              record.id
+                                ? "Saving..."
+                                : "Save"}
+                            </button>
+
+                            <button
+                              className="small-button"
+                              onClick={
+                                cancelEditing
+                              }
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="action-buttons">
+                            <button
+                              className="small-button"
+                              onClick={() =>
+                                startEditing(record)
                               }
                             >
                               Edit
                             </button>
-                          )}
 
-                        </td>
+                            {normalizeReviewStatus(
+                              record.review_status
+                            ) ===
+                              REVIEW_PENDING && (
+                              <>
+                                <button
+                                  className="small-button review-action-small approve"
+                                  onClick={() =>
+                                    updateReviewStatus(
+                                      record.id,
+                                      REVIEW_APPROVED
+                                    )
+                                  }
+                                  disabled={
+                                    reviewActionLoading ===
+                                    approveKey
+                                  }
+                                >
+                                  {reviewActionLoading ===
+                                  approveKey
+                                    ? "..."
+                                    : "Approve"}
+                                </button>
 
-                      </tr>
-                    );
-                  }
-                )}
-
+                                <button
+                                  className="small-button review-action-small reject"
+                                  onClick={() =>
+                                    updateReviewStatus(
+                                      record.id,
+                                      REVIEW_REJECTED
+                                    )
+                                  }
+                                  disabled={
+                                    reviewActionLoading ===
+                                    rejectKey
+                                  }
+                                >
+                                  {reviewActionLoading ===
+                                  rejectKey
+                                    ? "..."
+                                    : "Reject"}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
-
             </table>
-
           </div>
-
         </div>
 
         <div className="confidence-card">
-
           <div className="section-heading">
-
-            <div>
-              <h2>
-                Processing Information
-              </h2>
-
-              <p>
-                Confidence and review status
-                for this document.
-              </p>
-            </div>
-
+            Confidence Analysis
           </div>
 
           <div className="confidence-overview">
-
             <div className="confidence-main">
-
               <span>
-                AVERAGE CONFIDENCE
+                Overall Confidence
               </span>
 
               <strong>
-                {documentConfidence.toFixed(
-                  2
-                )}
-                %
+                {averageConfidence.toFixed(1)}%
               </strong>
 
               <div className="confidence-bar">
-
                 <div
                   className="confidence-fill"
                   style={{
-                    width: `${Math.min(
-                      Math.max(
-                        documentConfidence,
-                        0
-                      ),
-                      100
-                    )}%`,
+                    width: `${averageConfidence}%`,
                   }}
                 />
-
               </div>
-
             </div>
 
             <div className="confidence-stat">
-
-              <span>
-                DOCUMENT QUALITY
-              </span>
-
-              <span
-                className={`quality-badge ${getQualityClass(
-                  documentQuality,
-                  documentConfidence
-                )}`}
-              >
-                {documentQuality}
-              </span>
-
-            </div>
-
-            <div className="confidence-stat">
-
-              <span>
-                RECORDS REQUIRING REVIEW
-              </span>
+              <span>High Quality</span>
 
               <strong>
                 {
-                  selectedDocument.records_review_required ??
-                  0
+                  records.filter(
+                    (record) =>
+                      String(
+                        record.quality
+                      ).toUpperCase() ===
+                      "HIGH"
+                  ).length
                 }
               </strong>
-
             </div>
 
+            <div className="confidence-stat">
+              <span>Needs Review</span>
+
+              <strong>
+                {
+                  records.filter(
+                    requiresHumanReview
+                  ).length
+                }
+              </strong>
+            </div>
           </div>
 
-        </div>
+          <div className="confidence-grid">
+            {records.map((record) => (
+              <div
+                className="confidence-record"
+                key={record.id}
+              >
+                <div className="confidence-header">
+                  <strong>
+                    {record.customer ||
+                      `Record ${record.id}`}
+                  </strong>
 
+                  <span>
+                    {normalizeConfidence(
+                      record.confidence
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
+
+                <div className="field-list">
+                  <div className="field-row">
+                    <span>Customer</span>
+                    <strong>
+                      {record.customer ||
+                        "Missing"}
+                    </strong>
+                  </div>
+
+                  <div className="field-row">
+                    <span>Date</span>
+                    <strong>
+                      {record.date ||
+                        "Missing"}
+                    </strong>
+                  </div>
+
+                  <div className="field-row">
+                    <span>Product</span>
+                    <strong>
+                      {record.product ||
+                        "Missing"}
+                    </strong>
+                  </div>
+
+                  <div className="field-row">
+                    <span>Amount</span>
+                    <strong>
+                      {record.amount ||
+                        "Missing"}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
-  };
+  }
 
-  // ============================================================
-  // MAIN APPLICATION
-  // ============================================================
 
   return (
-    <div className="app-container">
-
+    <div className="app-shell">
       <aside className="sidebar">
-
         <div className="brand">
-
           <div className="brand-logo">
             IC
           </div>
 
           <div>
-            <h2>
+            <strong>
               IntelliCapture
-            </h2>
+            </strong>
 
             <span>
-              AI Document Intelligence
+              AI
             </span>
           </div>
-
         </div>
 
         <nav className="navigation">
-
           <button
             className={`nav-item ${
-              activePage === "upload"
+              activePage === "process"
                 ? "active"
                 : ""
             }`}
-            onClick={
-              openUploadPage
+            onClick={() =>
+              setActivePage("process")
             }
           >
-            <span>📄</span>
-            <span>
-              Process Document
-            </span>
+            <span>＋</span>
+            Process Document
           </button>
 
           <button
             className={`nav-item ${
-              activePage === "history" ||
-              activePage === "details"
+              activePage === "review"
                 ? "active"
                 : ""
             }`}
-            onClick={
-              openHistoryPage
+            onClick={() =>
+              setActivePage("review")
             }
           >
-            <span>🗂️</span>
-            <span>
-              Document History
-            </span>
+            <span>✓</span>
+
+            Human Review
+
+            {reviewQueue.length > 0 && (
+              <span className="review-count">
+                {reviewQueue.length}
+              </span>
+            )}
           </button>
 
+          <button
+            className={`nav-item ${
+              activePage === "history"
+                ? "active"
+                : ""
+            }`}
+            onClick={() =>
+              setActivePage("history")
+            }
+          >
+            <span>◫</span>
+            Document History
+          </button>
         </nav>
 
         <div className="sidebar-footer">
-
           <span>
             IntelliCapture-AI
           </span>
 
           <small>
-            Physical records → Digital assets
+            Document Intelligence Platform
           </small>
-
         </div>
-
       </aside>
 
       <main className="main-content">
-
-        {activePage === "upload" &&
+        {activePage === "process" &&
           renderUploadPage()}
 
         {activePage === "history" &&
           renderHistoryPage()}
 
+        {activePage === "review" &&
+          renderReviewPage()}
+
         {activePage === "details" &&
           renderDetailsPage()}
-
       </main>
-
     </div>
   );
 }
+
 
 export default App;

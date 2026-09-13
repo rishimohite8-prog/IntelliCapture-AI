@@ -13,6 +13,15 @@ DATABASE_FILE = DATABASE_DIR / "intellicapture.db"
 
 
 # ============================================================
+# REVIEW STATUS
+# ============================================================
+
+REVIEW_PENDING = "PENDING"
+REVIEW_APPROVED = "APPROVED"
+REVIEW_REJECTED = "REJECTED"
+
+
+# ============================================================
 # DATABASE CONNECTION
 # ============================================================
 
@@ -36,7 +45,8 @@ def get_connection() -> sqlite3.Connection:
 
 def initialize_database() -> None:
     """
-    Create all required database tables.
+    Create all required database tables and safely migrate
+    existing databases when new review fields are introduced.
     """
 
     connection = get_connection()
@@ -68,6 +78,8 @@ def initialize_database() -> None:
                 records_review_required INTEGER NOT NULL DEFAULT 0,
 
                 fields_review_required INTEGER NOT NULL DEFAULT 0,
+
+                review_status TEXT NOT NULL DEFAULT 'PENDING',
 
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
@@ -101,6 +113,8 @@ def initialize_database() -> None:
 
                 requires_review INTEGER NOT NULL DEFAULT 0,
 
+                review_status TEXT NOT NULL DEFAULT 'PENDING',
+
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
                 FOREIGN KEY (
@@ -113,6 +127,52 @@ def initialize_database() -> None:
             )
             """
         )
+
+        # ----------------------------------------------------
+        # SAFE MIGRATION FOR EXISTING DATABASES
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
+            PRAGMA table_info(documents)
+            """
+        )
+
+        document_columns = {
+            row["name"]
+            for row in cursor.fetchall()
+        }
+
+        if "review_status" not in document_columns:
+
+            cursor.execute(
+                """
+                ALTER TABLE documents
+                ADD COLUMN review_status TEXT NOT NULL DEFAULT 'PENDING'
+                """
+            )
+
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
+            PRAGMA table_info(records)
+            """
+        )
+
+        record_columns = {
+            row["name"]
+            for row in cursor.fetchall()
+        }
+
+        if "review_status" not in record_columns:
+
+            cursor.execute(
+                """
+                ALTER TABLE records
+                ADD COLUMN review_status TEXT NOT NULL DEFAULT 'PENDING'
+                """
+            )
 
         connection.commit()
 
@@ -246,11 +306,12 @@ def save_document(
                     average_confidence,
                     quality,
                     records_review_required,
-                    fields_review_required
+                    fields_review_required,
+                    review_status
 
                 )
 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     document["document_id"],
@@ -259,7 +320,8 @@ def save_document(
                     average_confidence,
                     quality,
                     records_review_required,
-                    fields_review_required
+                    fields_review_required,
+                    REVIEW_PENDING
                 )
             )
 
@@ -315,11 +377,12 @@ def save_document(
                     amount,
                     confidence,
                     quality,
-                    requires_review
+                    requires_review,
+                    review_status
 
                 )
 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     document["document_id"],
@@ -340,7 +403,8 @@ def save_document(
                             "requires_review",
                             False
                         )
-                    )
+                    ),
+                    REVIEW_PENDING
                 )
             )
 
@@ -574,6 +638,151 @@ def update_record(
     finally:
 
         connection.close()
+
+# ============================================================
+# UPDATE RECORD REVIEW STATUS
+# ============================================================
+
+def update_record_review_status(
+    record_id: int,
+    review_status: str
+) -> Optional[Dict]:
+    """
+    Update the review status of a record.
+
+    Allowed statuses:
+    PENDING
+    APPROVED
+    REJECTED
+    """
+
+    allowed_statuses = {
+        "PENDING",
+        "APPROVED",
+        "REJECTED"
+    }
+
+    review_status = review_status.upper()
+
+    if review_status not in allowed_statuses:
+
+        raise ValueError(
+            f"Invalid review status: {review_status}"
+        )
+
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT *
+            FROM records
+            WHERE id = ?
+            """,
+            (
+                record_id,
+            )
+        )
+
+        existing_record = cursor.fetchone()
+
+        if existing_record is None:
+
+            return None
+
+        cursor.execute(
+            """
+            UPDATE records
+
+            SET review_status = ?
+
+            WHERE id = ?
+            """,
+            (
+                review_status,
+                record_id
+            )
+        )
+
+        connection.commit()
+
+        cursor.execute(
+            """
+            SELECT *
+            FROM records
+            WHERE id = ?
+            """,
+            (
+                record_id,
+            )
+        )
+
+        updated_record = cursor.fetchone()
+
+        if updated_record is None:
+
+            return None
+
+        return dict(
+            updated_record
+        )
+
+    finally:
+
+        connection.close()
+
+
+# ============================================================
+# GET RECORDS REQUIRING REVIEW
+# ============================================================
+
+def get_records_for_review() -> List[Dict]:
+    """
+    Return records that require human review
+    and are still pending.
+    """
+
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT *
+
+            FROM records
+
+            WHERE
+                requires_review = 1
+
+                AND review_status = 'PENDING'
+
+            ORDER BY
+                confidence ASC,
+                id ASC
+            """
+        )
+
+        rows = cursor.fetchall()
+
+        return [
+            dict(row)
+            for row in rows
+        ]
+
+    finally:
+
+        connection.close()
+        
 # ============================================================
 # MAIN TEST
 # ============================================================
@@ -597,4 +806,3 @@ if __name__ == "__main__":
     print(
         "Database initialization successful."
     )
-

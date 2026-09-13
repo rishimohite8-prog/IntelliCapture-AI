@@ -2,34 +2,31 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from backend.app.services.document_service import (
-    process_uploaded_file
-)
-
-from backend.app.models.document import (
-    DocumentResponse
-)
+from backend.app.services.document_service import process_uploaded_file
+from backend.app.models.document import DocumentResponse
 
 from database.storage.database import (
     get_document,
     list_documents,
-    update_record
+    update_record,
+    get_records_for_review,
+    update_record_review_status,
 )
 
 
 # ============================================================
-# RECORD UPDATE REQUEST MODEL
+# REQUEST MODELS
 # ============================================================
 
 class RecordUpdateRequest(BaseModel):
-
     customer: str
-
     date: str
-
     product: str
-
     amount: str
+
+
+class ReviewStatusRequest(BaseModel):
+    review_status: str
 
 
 # ============================================================
@@ -37,17 +34,14 @@ class RecordUpdateRequest(BaseModel):
 # ============================================================
 
 app = FastAPI(
-    title="IntelliCapture-AI",
-    description=(
-        "Intelligent document digitization API "
-        "for converting physical records into structured data."
-    ),
-    version="0.1.0",
+    title="IntelliCapture-AI API",
+    description="AI-powered document intelligence and data extraction platform",
+    version="1.0.0",
 )
 
 
 # ============================================================
-# CORS CONFIGURATION
+# CORS
 # ============================================================
 
 app.add_middleware(
@@ -68,12 +62,9 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-
     return {
-        "project": "IntelliCapture-AI",
-        "status": "online",
-        "version": "0.1.0",
-        "message": "Document intelligence API is running."
+        "success": True,
+        "message": "IntelliCapture-AI API is running",
     }
 
 
@@ -83,9 +74,9 @@ def root():
 
 @app.get("/health")
 def health():
-
     return {
-        "status": "healthy"
+        "success": True,
+        "status": "healthy",
     }
 
 
@@ -95,67 +86,38 @@ def health():
 
 @app.post(
     "/api/v1/process",
-    response_model=DocumentResponse
+    response_model=DocumentResponse,
 )
-async def process_document(
-    file: UploadFile = File(...)
-):
-
-    if not file.filename:
-
-        raise HTTPException(
-            status_code=400,
-            detail="No file was provided."
-        )
-
+async def process_document(file: UploadFile = File(...)):
     try:
+        if not file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="No filename provided",
+            )
 
         file_content = await file.read()
 
         if not file_content:
-
             raise HTTPException(
                 status_code=400,
-                detail="Uploaded file is empty."
+                detail="Uploaded file is empty",
             )
 
         result = process_uploaded_file(
             filename=file.filename,
-            file_content=file_content
+            file_content=file_content,
         )
 
-        response = DocumentResponse(
-            success=True,
-            document_id=result["document_id"],
-            filename=result["filename"],
-            records_extracted=len(
-                result["records"]
-            ),
-            records=result["records"],
-            confidence=result["confidence"]
-        )
-
-        return response
+        return result
 
     except HTTPException:
-
         raise
 
-    except ValueError as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error)
-        )
-
     except Exception as error:
-
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Document processing failed: "
-                f"{str(error)}"
-            )
+            detail=f"Document processing failed: {str(error)}",
         )
 
 
@@ -163,82 +125,72 @@ async def process_document(
 # LIST DOCUMENTS
 # ============================================================
 
-@app.get(
-    "/api/v1/documents"
-)
+@app.get("/api/v1/documents")
 def get_documents():
-
     try:
-
         documents = list_documents()
 
         return {
             "success": True,
             "total_documents": len(documents),
-            "documents": documents
+            "documents": documents,
         }
 
     except Exception as error:
-
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Failed to retrieve documents: "
-                f"{str(error)}"
-            )
+            detail=f"Failed to retrieve documents: {str(error)}",
         )
 
 
 # ============================================================
-# GET DOCUMENT
+# GET DOCUMENT DETAILS
 # ============================================================
 
-@app.get(
-    "/api/v1/documents/{document_id}"
-)
-def get_single_document(
-    document_id: str
-):
-
+@app.get("/api/v1/documents/{document_id}")
+def get_document_details(document_id: str):
     try:
+        document = get_document(document_id)
 
-        result = get_document(
-            document_id
-        )
-
-        if result is None:
-
+        if document is None:
             raise HTTPException(
                 status_code=404,
-                detail=(
-                    f"Document not found: "
-                    f"{document_id}"
-                )
+                detail=f"Document not found: {document_id}",
             )
+
+        # get_document() currently returns:
+        #
+        # {
+        #     "document": {...},
+        #     "records": [...]
+        # }
+        #
+        # The API should expose the database document fields
+        # and records at the same level.
+
+        document_data = document.get("document", {})
+        records = document.get("records", [])
 
         return {
             "success": True,
-            "document": result["document"],
-            "records": result["records"]
+            "document": {
+                **document_data,
+                "records": records,
+            },
         }
 
     except HTTPException:
-
         raise
 
     except Exception as error:
-
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Failed to retrieve document: "
-                f"{str(error)}"
-            )
+            detail=f"Failed to retrieve document: {str(error)}",
         )
 
 
 # ============================================================
-# UPDATE RECORD
+# UPDATE DOCUMENT RECORD
 # ============================================================
 
 @app.put(
@@ -247,137 +199,121 @@ def get_single_document(
 def update_document_record(
     document_id: str,
     record_id: int,
-    data: RecordUpdateRequest
+    data: RecordUpdateRequest,
 ):
-
     try:
-
-        # ----------------------------------------------------
-        # Verify document exists
-        # ----------------------------------------------------
-
-        document = get_document(
-            document_id
-        )
-
-        if document is None:
-
-            raise HTTPException(
-                status_code=404,
-                detail=(
-                    f"Document not found: "
-                    f"{document_id}"
-                )
-            )
-
-        # ----------------------------------------------------
-        # Verify record belongs to document
-        # ----------------------------------------------------
-
-        record_exists = False
-
-        for record in document["records"]:
-
-            if record["id"] == record_id:
-
-                record_exists = True
-
-                break
-
-        if not record_exists:
-
-            raise HTTPException(
-                status_code=404,
-                detail=(
-                    f"Record {record_id} "
-                    f"not found in document "
-                    f"{document_id}."
-                )
-            )
-
-        # ----------------------------------------------------
-        # Validate values
-        # ----------------------------------------------------
-
-        customer = data.customer.strip()
-
-        date = data.date.strip()
-
-        product = data.product.strip()
-
-        amount = data.amount.strip()
-
-        if not customer:
-
-            raise HTTPException(
-                status_code=400,
-                detail="Customer cannot be empty."
-            )
-
-        if not date:
-
-            raise HTTPException(
-                status_code=400,
-                detail="Date cannot be empty."
-            )
-
-        if not product:
-
-            raise HTTPException(
-                status_code=400,
-                detail="Product cannot be empty."
-            )
-
-        if not amount:
-
-            raise HTTPException(
-                status_code=400,
-                detail="Amount cannot be empty."
-            )
-
-        # ----------------------------------------------------
-        # Update record
-        # ----------------------------------------------------
-
         updated_record = update_record(
             record_id=record_id,
-            customer=customer,
-            date=date,
-            product=product,
-            amount=amount
+            document_id=document_id,
+            customer=data.customer,
+            date=data.date,
+            product=data.product,
+            amount=data.amount,
         )
 
         if updated_record is None:
-
             raise HTTPException(
                 status_code=404,
-                detail=(
-                    f"Record not found: "
-                    f"{record_id}"
-                )
+                detail=f"Record not found: {record_id}",
             )
-
-        # ----------------------------------------------------
-        # Return updated record
-        # ----------------------------------------------------
 
         return {
             "success": True,
             "message": "Record updated successfully.",
-            "document_id": document_id,
-            "record": updated_record
+            "record": updated_record,
         }
 
     except HTTPException:
-
         raise
 
     except Exception as error:
-
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Failed to update record: "
-                f"{str(error)}"
+            detail=f"Failed to update record: {str(error)}",
+        )
+
+
+# ============================================================
+# HUMAN REVIEW QUEUE
+# ============================================================
+
+@app.get("/api/v1/review/queue")
+def get_review_queue():
+    try:
+        records = get_records_for_review()
+
+        return {
+            "success": True,
+            "total_records": len(records),
+            "records": records,
+        }
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve review queue: {str(error)}",
+        )
+
+
+# ============================================================
+# UPDATE REVIEW STATUS
+# ============================================================
+
+@app.put(
+    "/api/v1/records/{record_id}/review-status"
+)
+def update_review_status(
+    record_id: int,
+    data: ReviewStatusRequest,
+):
+    try:
+        status = data.review_status.strip().upper()
+
+        allowed_statuses = {
+            "PENDING",
+            "APPROVED",
+            "REJECTED",
+        }
+
+        if status not in allowed_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Invalid review status. "
+                    "Use PENDING, APPROVED, or REJECTED."
+                ),
             )
+
+        updated_record = update_record_review_status(
+            record_id=record_id,
+            review_status=status,
+        )
+
+        if updated_record is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Record not found: {record_id}",
+            )
+
+        return {
+            "success": True,
+            "message": (
+                f"Record review status updated to {status}."
+            ),
+            "record": updated_record,
+        }
+
+    except HTTPException:
+        raise
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update review status: {str(error)}",
         )

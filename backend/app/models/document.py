@@ -24,10 +24,7 @@ class RecordConfidence(BaseModel):
     word_count: int
     requires_review: bool
 
-    fields: Dict[
-        str,
-        FieldConfidence
-    ]
+    fields: Dict[str, FieldConfidence]
 
 
 # ============================================================
@@ -47,10 +44,7 @@ class ConfidenceSummary(BaseModel):
 # ============================================================
 
 class DocumentConfidence(BaseModel):
-    records: List[
-        RecordConfidence
-    ]
-
+    records: List[RecordConfidence]
     summary: ConfidenceSummary
 
 
@@ -70,15 +64,9 @@ class ExtractedRecord(BaseModel):
 # ============================================================
 
 class DocumentResponse(BaseModel):
-    success: bool
     document_id: str
     filename: str
-    records_extracted: int
 
-    records: List[
-        ExtractedRecord
-    ]
+    records: List[ExtractedRecord]
 
-    confidence: Optional[
-        DocumentConfidence
-    ] = None
+    confidence: Optional[DocumentConfidence] = None

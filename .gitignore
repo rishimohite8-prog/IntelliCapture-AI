@@ -242,3 +242,6 @@ htmlcov/
 
 # Temporary files
 tempCodeRunnerFile.py
+
+# Local IntelliCapture database
+database/storage/intelcapture.db
